@@ -1,0 +1,103 @@
+<!-- Code adapted from nodejs-start-app from course github to fit our database -->
+
+<!-- order-drinks.hbs -->
+<title>Orders_Drinks</title>
+<h1>Orders_Drinks</h1>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+[ <a href="/">Home</a> | <a href="/employees">Employees</a> 
+| <a href="/customers">Customers</a> 
+| <a href="/orders">Orders</a> | <a href="/drinks">Drinks</a>
+| <a href="/orders_drinks">Orders_Drinks</a>  ]
+
+{{!-- Create a table --}}
+<table id="orders_drinks-table">
+
+    {{!-- Header section --}}
+    <thead>
+
+        {{!-- For just the first row, we print each key of the row object as a header cell so we
+        know what each column means when the page renders --}}
+        <tr>
+            {{#each data.[0]}}
+            <th>
+                {{@key}}
+            </th>
+            {{/each}}
+            <th>delete</th>
+        </tr>
+    </thead>
+
+    {{!-- Body section --}}
+    <tbody>
+
+        {{#each data}}
+        <tr data-value={{this.idOrder}}>
+            <td>{{this.idOrder}}</td>
+            <td>{{this.idDrink}}</td>
+            <td>{{this.quantity}}</td>
+            <td>{{this.drinkTotal}}</td>
+            <td><button onclick="deleteOrder_Drink({{this.idOrder_Drink}})">Delete</button></td>
+        </tr>
+        {{/each}}
+    </tbody>
+</table>
+<script src="./js/delete_order_drink.js"></script>
+
+
+{{!-- Form to add a record to the table  --}}
+<h2>Add a New Order_Drink</h2>
+<p>To add a new drink, please enter its information below and click 'Submit'!</p>
+<form id="add-order_drink-form-ajax">
+    <label for="input-idOrder">Order ID: </label>
+    <input type="text" name="inputOrder" id="input-idOrder">
+
+    <label for="input-idDrink">Drink ID: </label>
+    <input type="text" name="input-Drink" id="input-idDrink">
+    
+    <label for="input-quantity">Quantity: </label>
+    <input type="text" name="input-quantity" id="input-quantity">
+
+
+    <label for="input-drinkTotal"> Drink Total: </label>
+    <input type="text" name="input-drinkTotal" id="input-drinkTotal">
+
+    <input type="submit">
+</form>
+
+{{!-- Embed our javascript to handle the DOM manipulation and AJAX request --}}
+<script src="./js/add_order_drink.js"></script>
+
+
+<h2>Updating an Order_Drink's Info </h2>
+<p>To update a specific order_drink's info, fill out the fields below. Refresh page after submitting.</p>
+<form id="update-order_drink-form-ajax">
+
+    <label for="input-idOrder">Order ID: </label>
+    <select name="input-idOrder" id="input-idOrder">
+        <option value="test">Select an </option>
+        {{#each data}}
+        <option value="{{this.idOrder_Drink}}">{{this.idOrder_Drink}}</option>
+        {{/each}}
+    </select>
+
+    <label for="input-idDrink">Drink ID: </label>
+    <select name="input-idDrink" id="input-idDrink">
+        <option value="test">Select an </option>
+        {{#each data}}
+        <option value="{{this.idOrder_Drink}}">{{this.idOrder_Drink}}</option>
+        {{/each}}
+    </select>
+
+    <label for="input-quantity-update">Quantity: </label>
+    <input type="text" name="input-quantity-update" id="input-quantity-update">
+
+    <label for="input-drinkTotal-update">Drink Total: </label>
+    <input type="text" name="input-drinkTotal-update" id="input-drinkTotal-update">
+
+    <input type="submit">
+
+</form>
+
+<script src="./js/update_order_drink.js"></script>
+

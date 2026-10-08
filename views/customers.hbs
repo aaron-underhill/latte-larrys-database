@@ -1,0 +1,92 @@
+<!-- Code adapted from nodejs-start-app from course github to fit our database -->
+
+<!-- customers.hbs -->
+<title>Customers</title>
+<h1>Customers</h1>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+
+[ <a href="/">Home</a> | <a href="/employees">Employees</a> 
+| <a href="/customers">Customers</a> 
+| <a href="/orders">Orders</a> | <a href="/drinks">Drinks</a>
+| <a href="/orders_drinks">Orders_Drinks</a>  ]
+
+{{!-- Create a table --}}
+<table id="customers-table">
+
+    {{!-- Header section --}}
+    <thead>
+
+        {{!-- For just the first row, we print each key of the row object as a header cell so we
+        know what each column means when the page renders --}}
+        <tr>
+            {{#each data.[0]}}
+            <th>
+                {{@key}}
+            </th>
+            {{/each}}
+            <th>delete</th>
+        </tr>
+    </thead>
+
+    {{!-- Body section --}}
+    <tbody>
+
+        {{#each data}}
+        <tr data-value={{this.idCustomer}}>
+            <td>{{this.idCustomer}}</td>
+            <td>{{this.name}}</td>
+            <td>{{this.phoneNum}}</td>
+            <td>{{this.email}}</td>
+            <td><button onclick="deleteCustomer({{this.idCustomer}})">Delete</button></td>
+        </tr>
+        {{/each}}
+    </tbody>
+</table>
+<script src="./js/delete_customer.js"></script>
+
+
+{{!-- Form to add a record to the table  --}}
+<h2>Add a New Customer</h2>
+<p>To add a new customer, please enter their information below and click 'Submit'!</p>
+<form id="add-customer-form-ajax">
+    <label for="input-name">Name: </label>
+    <input type="text" name="input-name" id="input-name">
+    
+    <label for="input-phoneNum">Phone Number: </label>
+    <input type="text" name="input-phoneNum" id="input-phoneNum">
+
+
+    <label for="input-email">Email: </label>
+    <input type="text" name="input-email" id="input-email">
+
+    <input type="submit">
+</form>
+
+{{!-- Embed our javascript to handle the DOM manipulation and AJAX request --}}
+<script src="./js/add_customer.js"></script>
+
+
+<h2>Updating a Customer's Info </h2>
+<p>To update a specific cusomter's info, fill out the fields below. Refresh page after submitting.</p>
+<form id="update-customer-form-ajax">
+
+    <label for="input-name">Customer ID: </label>
+    <select name="input-name" id="mySelect">
+        <option value="test">Select a Customer</option>
+        {{#each data}}
+        <option value="{{this.idCustomer}}">{{this.idCustomer}}</option>
+        {{/each}}
+    </select>
+
+    <label for="input-phoneNum-update">Phone Number: </label>
+    <input type="text" name="input-phoneNum-update" id="input-phoneNum-update">
+
+    <label for="input-email-update">Email: </label>
+    <input type="text" name="input-email-update" id="input-email-update">
+
+    <input type="submit">
+
+</form>
+
+<script src="./js/update_customer.js"></script>
+
