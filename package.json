@@ -9,6 +9,7 @@
   "author": "Anthony Corton",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^18.0.7",
     "express": "^4.19.2",
     "express-handlebars": "^6.0.7",
     "forever": "^4.0.3",
