@@ -11,10 +11,10 @@ SELECT * FROM Employees;
 INSERT INTO Employees(name, idPassword, phoneNum, email, address)
 VALUES (
 	:employeeNameInput,
-	:idPasswordInput
+	:idPasswordInput,
 	:employeePhoneNumInput,
 	:emailInput,
-	:addressInput,
+	:addressInput
 );
 
 

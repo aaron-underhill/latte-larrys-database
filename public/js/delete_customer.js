@@ -1,43 +1,71 @@
 // Code adapted from nodejs-start-app from course github to fit our database
 
-// code for deletePerson using regular javascript/xhttp
+
+// Delete a Customer
 function deleteCustomer(customerID) {
-    // Put our data we want to send in a javascript object
+
+    // Put our data we want to send in a JavaScript object
     let data = {
         id: customerID
     };
-    
+
     // Setup our AJAX request
-    var xhttp = new XMLHttpRequest();
+    let xhttp = new XMLHttpRequest();
+
     xhttp.open("DELETE", "/delete-customer-ajax", true);
+
     xhttp.setRequestHeader("Content-type", "application/json");
 
     // Tell our AJAX request how to resolve
     xhttp.onreadystatechange = () => {
+
         if (xhttp.readyState == 4 && xhttp.status == 204) {
 
-            // Add the new data to the table
+            // Remove the Customer from the HTML table
             deleteRow(customerID);
+
+            // Remove the Customer from the Update dropdown
+            deleteCustomerFromDropdown(customerID);
         }
+
         else if (xhttp.readyState == 4 && xhttp.status != 204) {
-            console.log("There was an error with the input.")
+            console.log("There was an error deleting the customer.");
+            console.log(xhttp.responseText);
         }
-    }
+    };
+
     // Send the request and wait for the response
     xhttp.send(JSON.stringify(data));
 }
 
-function deleteRow(customerID){
 
-    let table = document.getElementById("customers-table");
-    for (let i = 0, row; row = table.rows[i]; i++) {
-       //iterate through rows
-       //rows would be accessed using the "row" variable assigned in the for loop
-       if (table.rows[i].getAttribute("data-value") == customerID) {
-            table.deleteRow(i);
-            break;
-       }
+// Remove the Customer's row from the table
+function deleteRow(customerID) {
+
+    let row = document.querySelector(
+        `#customers-table tbody tr[data-value="${customerID}"]`
+    );
+
+    if (row) {
+        row.remove();
     }
 }
 
 
+// Remove the Customer from the Update dropdown
+function deleteCustomerFromDropdown(customerID) {
+
+    let selectMenu = document.getElementById("customer-select");
+
+    if (!selectMenu) {
+        return;
+    }
+
+    let option = selectMenu.querySelector(
+        `option[value="${customerID}"]`
+    );
+
+    if (option) {
+        option.remove();
+    }
+}

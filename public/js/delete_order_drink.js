@@ -1,40 +1,96 @@
 // Code adapted from nodejs-start-app from course github to fit our database
 
-// code for deleteOrder using regular javascript/xhttp
-function deleteOrder(orderID) {
-    // Put our data we want to send in a javascript object
+
+// Remove a Drink from an Order
+function deleteOrderDrink(orderDrinkID) {
+
+    // Build the object to send
     let data = {
-        id: orderID
+        id: orderDrinkID
     };
-    // Setup our AJAX request
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("DELETE", "/delete-order-ajax", true);
-    xhttp.setRequestHeader("Content-type", "application/json");
 
-    // Tell our AJAX request how to resolve
+    // Setup AJAX request
+    let xhttp =
+        new XMLHttpRequest();
+
+    xhttp.open(
+        "DELETE",
+        "/delete-order_drink-ajax",
+        true
+    );
+
+    xhttp.setRequestHeader(
+        "Content-type",
+        "application/json"
+    );
+
+    // Handle response
     xhttp.onreadystatechange = () => {
-        if (xhttp.readyState == 4 && xhttp.status == 204) {
 
-            // Add the new data to the table
-            deleteRow(orderID);
+        if (
+            xhttp.readyState == 4 &&
+            xhttp.status == 204
+        ) {
+
+            // Remove the relationship from
+            // the current HTML table.
+            deleteRow(orderDrinkID);
+
+            // Remove it from the Update dropdown.
+            deleteOrderDrinkFromDropdown(
+                orderDrinkID
+            );
         }
-        else if (xhttp.readyState == 4 && xhttp.status != 204) {
-            console.log("There was an error with the input.")
+
+        else if (
+            xhttp.readyState == 4 &&
+            xhttp.status != 204
+        ) {
+
+            console.log(
+                "There was an error removing the Drink from the Order."
+            );
+
+            console.log(xhttp.responseText);
         }
-    }
-    // Send the request and wait for the response
+    };
+
+    // Send the request
     xhttp.send(JSON.stringify(data));
 }
 
-function deleteRow(orderID){
 
-    let table = document.getElementById("orders-table");
-    for (let i = 0, row; row = table.rows[i]; i++) {
-       //iterate through rows
-       //rows would be accessed using the "row" variable assigned in the for loop
-       if (table.rows[i].getAttribute("data-value") == orderID) {
-            table.deleteRow(i);
-            break;
-       }
+// Remove the row from the HTML table
+function deleteRow(orderDrinkID) {
+
+    let row = document.querySelector(
+        `#orders_drinks-table tbody tr[data-value="${orderDrinkID}"]`
+    );
+
+    if (row) {
+        row.remove();
+    }
+}
+
+
+// Remove the relationship from the Update dropdown
+function deleteOrderDrinkFromDropdown(orderDrinkID) {
+
+    let selectMenu =
+        document.getElementById(
+            "order-drink-select"
+        );
+
+    if (!selectMenu) {
+        return;
+    }
+
+    let option =
+        selectMenu.querySelector(
+            `option[value="${orderDrinkID}"]`
+        );
+
+    if (option) {
+        option.remove();
     }
 }

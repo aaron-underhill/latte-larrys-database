@@ -2,13 +2,20 @@
 
 <!-- orders.hbs -->
 <title>Orders</title>
+
 <h1>Orders</h1>
+
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 
-[ <a href="/">Home</a> | <a href="/employees">Employees</a> 
-| <a href="/customers">Customers</a> 
-| <a href="/orders">Orders</a> | <a href="/drinks">Drinks</a>
-| <a href="/orders_drinks">Orders_Drinks</a>  ]
+[
+<a href="/">Home</a> |
+<a href="/employees">Employees</a> |
+<a href="/customers">Customers</a> |
+<a href="/orders">Orders</a> |
+<a href="/drinks">Drinks</a> |
+<a href="/orders_drinks">Orders_Drinks</a>
+]
+
 
 {{!-- Create a table --}}
 <table id="orders-table">
@@ -16,107 +23,232 @@
     {{!-- Header section --}}
     <thead>
 
-        {{!-- For just the first row, we print each key of the row object as a header cell so we
-        know what each column means when the page renders --}}
         <tr>
-            {{#each orderData.[0]}}
-            <th>
-                {{@key}}
-            </th>
-            {{/each}}
+            <th>idOrder</th>
+            <th>idEmployee</th>
+            <th>idCustomer</th>
+            <th>totalPrice</th>
+            <th>minutesToProcess</th>
+            <th>orderDate</th>
             <th>delete</th>
         </tr>
+
     </thead>
+
 
     {{!-- Body section --}}
     <tbody>
 
         {{#each orderData}}
-        <tr data-value={{this.idOrder}}>
+
+        <tr data-value="{{this.idOrder}}">
+
             <td>{{this.idOrder}}</td>
+
             <td>{{this.idEmployee}}</td>
+
             <td>{{this.idCustomer}}</td>
+
             <td>{{this.totalPrice}}</td>
+
             <td>{{this.minutesToProcess}}</td>
+
             <td>{{this.orderDate}}</td>
-            <td><button onclick="deleteOrder({{this.idOrder}})">Delete</button></td>
+
+            <td>
+                <button onclick="deleteOrder({{this.idOrder}})">
+                    Delete
+                </button>
+            </td>
+
         </tr>
+
         {{/each}}
+
     </tbody>
+
 </table>
-<script src="./js/delete_order.js"></script> 
 
 
-{{!-- Form to add a record to the table  --}}
+{{!-- Embed our JavaScript for deleting Orders --}}
+<script src="./js/delete_order.js"></script>
+
+
+
+{{!-- Form to add a record to the table --}}
 <h2>Add a New Order</h2>
-<p>To add a new order, please enter the information below and click 'Submit'!</p>
+
+<p>
+    To add a new Order, please enter its information
+    below and click 'Submit'. The total price will
+    automatically be calculated from the Drinks later
+    added to the Order.
+</p>
+
+
 <form id="add-order-form-ajax">
 
-    <label for="input-employee">Employee: </label>
-    <select name="input-employee" id="input-employee">
-        <option value="employee">Select an Employee</option>
+
+    <label for="input-employee">
+        Employee:
+    </label>
+
+    <select name="input-employee" id="input-employee" required>
+
+        <option value="">
+            Select an Employee
+        </option>
+
         {{#each employeeData}}
-        <option value="{{this.idEmployee}}">{{this.idEmployee}}</option>
+
+        <option value="{{this.idEmployee}}">
+            {{this.name}} (ID {{this.idEmployee}})
+        </option>
+
         {{/each}}
+
     </select>
 
-    <label for="input-customer">Customer: </label>
-    <select name="input-customer" id="input-customer">
-        <option value="test">Select a Customer</option>
+
+    <label for="input-customer">
+        Customer:
+    </label>
+
+    <select name="input-customer" id="input-customer" required>
+
+        <option value="">
+            Select a Customer
+        </option>
+
         {{#each customerData}}
-        <option value="{{this.idCustomer}}">{{this.idCustomer}}</option>
+
+        <option value="{{this.idCustomer}}">
+            {{this.name}} (ID {{this.idCustomer}})
+        </option>
+
         {{/each}}
+
     </select>
 
-    <label for="input-minutesToProcess">Minutes Taken To Process: </label>
-    <input type="text" name="input-minutesToProcess" id="input-minutesToProcess">
-    
-    <label for="input-date">Order Date: </label>
-    <input type="date" name="input-date" id="input-date">
-    
-    <input type="submit">
-</form> 
 
-{{!-- Embed our javascript to handle the DOM manipulation and AJAX request --}}
-<script src="./js/add_order.js"></script>
+    <label for="input-minutesToProcess">
+        Minutes Taken To Process:
+    </label>
+
+    <input type="number" name="input-minutesToProcess" id="input-minutesToProcess" min="0" step="0.1" required>
 
 
-<h2>Updating an Order's Info </h2>
-<p>To update a specific order's info, fill out the fields below. Refresh page after submitting.</p>
-<form id="update-order-form-ajax">
+    <label for="input-orderDate">
+        Order Date:
+    </label>
 
-    <label for="update-order">Order: </label>
-    <select name="update-order" id="update-order">
-        <option value="test">Select an Order</option>
-        {{#each orderData}}
-        <option value="{{this.idOrder}}">{{this.idOrder}}</option>
-        {{/each}}
-    </select>
+    <input type="date" name="input-orderDate" id="input-orderDate" required>
 
-    <label for="update-employee">Employee: </label>
-    <select name="update-employee" id="update-employee">
-        <option value="employee">Select an Employee</option>
-        {{#each employeeData}}
-        <option value="{{this.idEmployee}}">{{this.idEmployee}}</option>
-        {{/each}}
-    </select>
-
-    <label for="update-customer">Customer: </label>
-    <select name="update-customer" id="update-customer">
-        <option value="test">Select a Customer</option>
-        {{#each customerData}}
-        <option value="{{this.idCustomer}}">{{this.idCustomer}}</option>
-        {{/each}}
-    </select>
-
-    <label for="update-minutesToProcess">Minutes Taken To Process: </label>
-    <input type="text" name="update-minutesToProcess" id="update-minutesToProcess">
-    
-    <label for="update-date">Order Date: </label>
-    <input type="date" name="update-date" id="update-date">
 
     <input type="submit">
 
 </form>
 
+
+{{!-- Embed our JavaScript to handle Create --}}
+<script src="./js/add_order.js"></script>
+
+
+
+<h2>Updating an Order's Info</h2>
+
+<p>
+    To update a specific Order's information,
+    select the Order and enter its updated information below.
+    Total price is calculated automatically from the Drinks
+    belonging to the Order.
+</p>
+
+
+<form id="update-order-form-ajax">
+
+
+    <label for="order-select">
+        Order:
+    </label>
+
+    <select name="order-select" id="order-select" required>
+
+        <option value="">
+            Select an Order
+        </option>
+
+        {{#each orderData}}
+
+        <option value="{{this.idOrder}}">
+            Order {{this.idOrder}}
+        </option>
+
+        {{/each}}
+
+    </select>
+
+
+    <label for="update-employee">
+        Employee:
+    </label>
+
+    <select name="update-employee" id="update-employee" required>
+
+        <option value="">
+            Select an Employee
+        </option>
+
+        {{#each employeeData}}
+
+        <option value="{{this.idEmployee}}">
+            {{this.name}} (ID {{this.idEmployee}})
+        </option>
+
+        {{/each}}
+
+    </select>
+
+
+    <label for="update-customer">
+        Customer:
+    </label>
+
+    <select name="update-customer" id="update-customer" required>
+
+        <option value="">
+            Select a Customer
+        </option>
+
+        {{#each customerData}}
+
+        <option value="{{this.idCustomer}}">
+            {{this.name}} (ID {{this.idCustomer}})
+        </option>
+
+        {{/each}}
+
+    </select>
+
+
+    <label for="update-minutesToProcess">
+        Minutes Taken To Process:
+    </label>
+
+    <input type="number" name="update-minutesToProcess" id="update-minutesToProcess" min="0" step="0.1" required>
+
+
+    <label for="update-date">
+        Order Date:
+    </label>
+
+    <input type="date" name="update-date" id="update-date" required>
+
+
+    <input type="submit">
+
+</form>
+
+
+{{!-- Embed our JavaScript to handle Update --}}
 <script src="./js/update_order.js"></script>

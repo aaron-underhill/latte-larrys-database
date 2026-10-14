@@ -5,113 +5,122 @@ let addCustomerForm = document.getElementById('add-customer-form-ajax');
 
 // Modify the objects we need
 addCustomerForm.addEventListener("submit", function (e) {
-    
-    // Prevent the form from submitting
+
+    // Prevent normal form submission
     e.preventDefault();
 
-    // Get form fields we need to get data from
+    // Get form fields
     let inputName = document.getElementById("input-name");
     let inputPhoneNum = document.getElementById("input-phoneNum");
     let inputEmail = document.getElementById("input-email");
 
-    // Get the values from the form fields
+    // Get their current values
     let nameValue = inputName.value;
     let phoneNumValue = inputPhoneNum.value;
     let emailValue = inputEmail.value;
 
-    // Put our data we want to send in a javascript object
+    // Build the object we want to send
     let data = {
         name: nameValue,
         phoneNum: phoneNumValue,
-        email: emailValue,
-    }
-    
-    // Setup our AJAX request
-    var xhttp = new XMLHttpRequest();
+        email: emailValue
+    };
+
+    // Create an XMLHttpRequest object
+    let xhttp = new XMLHttpRequest();
+
+    // Configure the request
     xhttp.open("POST", "/add-customer-ajax", true);
+
+    // Tell the server we're sending JSON
     xhttp.setRequestHeader("Content-type", "application/json");
 
     // Tell our AJAX request how to resolve
     xhttp.onreadystatechange = () => {
-        if (xhttp.readyState == 4 && xhttp.status == 200) {
+
+        if (xhttp.readyState == 4 && xhttp.status == 201) {
+
+            // This Customer came back from MariaDB
+            let newCustomer = JSON.parse(xhttp.responseText);
 
             // Add the new data to the table
-            addRowToTable(xhttp.response);
+            addRowToTable(newCustomer);
 
-            // Clear the input fields for another transaction
+            // Clear the input fields
             inputName.value = '';
             inputPhoneNum.value = '';
             inputEmail.value = '';
         }
-        else if (xhttp.readyState == 4 && xhttp.status != 200) {
-            console.log("There was an error with the input.")
+
+        else if (xhttp.readyState == 4 && xhttp.status != 201) {
+            console.log("There was an error creating the customer.");
+            console.log(xhttp.responseText);
         }
-    }
+    };
 
-    // Send the request and wait for the response
+    // Send the request
     xhttp.send(JSON.stringify(data));
+});
 
-})
 
+// Creates a single table row from an object representing one Customer
+function addRowToTable(newCustomer) {
 
-// Creates a single row from an Object representing a single record from 
-// bsg_people
-addRowToTable = (data) => {
+    // Get the <tbody> belonging to our customer table
+    let tableBody = document.querySelector("#customers-table tbody");
 
-    // Get a reference to the current table on the page and clear it out.
-    let currentTable = document.getElementById("customers-table");
-
-    // Get the location where we should insert the new row (end of table)
-    let newRowIndex = currentTable.rows.length;
-
-    // Get a reference to the new row from the database query (last object)
-    let parsedData = JSON.parse(data);
-    let newRow = parsedData[parsedData.length - 1]
-
-    // Create a row and 4 cells
+    // Create a row and its cells
     let row = document.createElement("TR");
     let idCustomerCell = document.createElement("TD");
     let nameCell = document.createElement("TD");
     let phoneNumCell = document.createElement("TD");
     let emailCell = document.createElement("TD");
-
     let deleteCell = document.createElement("TD");
 
-    // Fill the cells with correct data
-    idCustomerCell.innerText = newRow.idCustomer;
-    nameCell.innerText = newRow.name;
-    phoneNumCell.innerText = newRow.phoneNum;
-    emailCell.innerText = newRow.email;
-    
-    deleteCell = document.createElement("button");
-    deleteCell.innerHTML = "Delete";
-    deleteCell.onclick = function(){
-        deletePerson(newRow.idCustomer);
+    // Create a button that will go inside the Delete cell
+    let deleteButton = document.createElement("button");
+
+    // Fill the cells with the data returned by the server
+    idCustomerCell.innerText = newCustomer.idCustomer;
+    nameCell.innerText = newCustomer.name;
+    phoneNumCell.innerText = newCustomer.phoneNum ?? '';
+    emailCell.innerText = newCustomer.email ?? '';
+
+    // Configure the Delete button
+    deleteButton.innerText = "Delete";
+
+    deleteButton.onclick = function () {
+        deleteCustomer(newCustomer.idCustomer);
     };
 
+    // Put the button inside the table cell
+    deleteCell.appendChild(deleteButton);
 
-
-    // Add the cells to the row 
+    // Put all of the cells inside the new row
     row.appendChild(idCustomerCell);
     row.appendChild(nameCell);
     row.appendChild(phoneNumCell);
     row.appendChild(emailCell);
     row.appendChild(deleteCell);
-    
-    // Add a custom row attribute so the deleteRow function can find a newly added row
-    row.setAttribute('data-value', newRow.id);
 
-    // Add the row to the table
-    currentTable.appendChild(row);
+    // Store the customer's ID on the row
+    row.setAttribute("data-value", newCustomer.idCustomer);
 
-    // Start of new Step 8 code for adding new data to the dropdown menu for updating people
-    
-    // Find drop down menu, create a new option, fill data in the option (full name, id),
-    // then append option to drop down menu so newly created rows via ajax will be found in it without needing a refresh
-    let selectMenu = document.getElementById("mySelect");
-    let option = document.createElement("option");
-    option.text = newRow.fname + ' ' +  newRow.lname;
-    option.value = newRow.id;
-    selectMenu.add(option);
-    // End of new step 8 code.
+    // Put the completed row into the table body
+    tableBody.appendChild(row);
+
+    // Also add the Customer to the Update dropdown
+    let selectMenu = document.getElementById("customer-select");
+
+    if (selectMenu) {
+
+        let option = document.createElement("option");
+
+        option.text =
+            `${newCustomer.name} (ID ${newCustomer.idCustomer})`;
+
+        option.value = newCustomer.idCustomer;
+
+        selectMenu.add(option);
+    }
 }

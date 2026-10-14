@@ -5,122 +5,186 @@ let addOrderForm = document.getElementById('add-order-form-ajax');
 
 // Modify the objects we need
 addOrderForm.addEventListener("submit", function (e) {
-    
-    // Prevent the form from submitting
+
+    // Prevent normal form submission
     e.preventDefault();
 
-    // Get form fields we need to get data from
-    let inputEmployee = document.getElementById("input-employee");
-    let inputCustomer = document.getElementById("input-customer");
-    let inputMinutes = document.getElementById("input-minutesToProcess");
-    let inputDate = document.getElementById("input-date");
+    // Get form fields
+    let inputEmployee =
+        document.getElementById("input-employee");
 
-    // Get the values from the form fields
+    let inputCustomer =
+        document.getElementById("input-customer");
+
+    let inputMinutesToProcess =
+        document.getElementById("input-minutesToProcess");
+
+    let inputOrderDate =
+        document.getElementById("input-orderDate");
+
+    // Get their current values
     let employeeValue = inputEmployee.value;
     let customerValue = inputCustomer.value;
-    let minutesValue = inputMinutes.value;
-    let dateValue = inputDate.value;
+    let minutesToProcessValue = inputMinutesToProcess.value;
+    let orderDateValue = inputOrderDate.value;
 
-    // Put our data we want to send in a javascript object
+    // Build the object we want to send
     let data = {
-        employee: employeeValue,
-        customer: customerValue,
-        minutes: minutesValue,
-        date: dateValue
-    }
+        idEmployee: employeeValue,
+        idCustomer: customerValue,
+        minutesToProcess: minutesToProcessValue,
+        orderDate: orderDateValue
+    };
 
-    console.log("hi");
-    
-    // Setup our AJAX request
-    var xhttp = new XMLHttpRequest();
+    // Create an XMLHttpRequest object
+    let xhttp = new XMLHttpRequest();
+
+    // Configure the request
     xhttp.open("POST", "/add-order-ajax", true);
-    xhttp.setRequestHeader("Content-type", "application/json");
+
+    // Tell the server we're sending JSON
+    xhttp.setRequestHeader(
+        "Content-type",
+        "application/json"
+    );
 
     // Tell our AJAX request how to resolve
     xhttp.onreadystatechange = () => {
-        if (xhttp.readyState == 4 && xhttp.status == 200) {
 
-            // Add the new data to the table
-            addRowToTable(xhttp.response);
+        if (
+            xhttp.readyState == 4 &&
+            xhttp.status == 201
+        ) {
 
-            // Clear the input fields for another transaction
+            // Parse the actual Order returned from MariaDB
+            let newOrder =
+                JSON.parse(xhttp.responseText);
+
+            // Add the new Order to the table
+            addRowToTable(newOrder);
+
+            // Reset the form
             inputEmployee.value = '';
             inputCustomer.value = '';
-            inputMinutes.value = '';
-            inputDate.value = '';
+            inputMinutesToProcess.value = '';
+            inputOrderDate.value = '';
         }
-        else if (xhttp.readyState == 4 && xhttp.status != 200) {
-            console.log("There was an error with the input.")
+
+        else if (
+            xhttp.readyState == 4 &&
+            xhttp.status != 201
+        ) {
+            console.log(
+                "There was an error creating the Order."
+            );
+
+            console.log(xhttp.responseText);
         }
-    }
-
-    // Send the request and wait for the response
-    xhttp.send(JSON.stringify(data));
-
-})
-
-/*
-// Creates a single row from an Object representing a single record from 
-// bsg_people
-addRowToTable = (data) => {
-
-    // Get a reference to the current table on the page and clear it out.
-    let currentTable = document.getElementById("orders-table");
-
-    // Get the location where we should insert the new row (end of table)
-    let newRowIndex = currentTable.rows.length;
-
-    // Get a reference to the new row from the database query (last object)
-    let parsedData = JSON.parse(data);
-    let newRow = parsedData[parsedData.length - 1]
-
-    // Create a row and 4 cells
-    let row = document.createElement("TR");
-    let idOrderCell = document.createElement("TD");
-    let idEmployeeCell = document.createElement("TD");
-    let idCustomerCell = document.createElement("TD");
-    let totalPriceCell = document.createElement("TD");
-    let minutesCell = document.createElement("TD");
-
-    let deleteCell = document.createElement("TD");
-
-    // Fill the cells with correct data
-    idOrderCell.innerText = newRow.idOrder;
-    idEmployeeCell.innerText = newRow.employee;
-    idCustomerCell.innerText = newRow.customer;
-    totalPriceCell.innerText = 0;
-    minutesCell.innerText = newRow.minutes;
-    
-    deleteCell = document.createElement("button");
-    deleteCell.innerHTML = "Delete";
-    deleteCell.onclick = function(){
-        deletePerson(newRow.idDrink);
     };
 
+    // Send the request
+    xhttp.send(JSON.stringify(data));
+});
 
 
-    // Add the cells to the row 
+// Creates a single table row representing one Order
+function addRowToTable(newOrder) {
+
+    // Get the <tbody> belonging to our Order table
+    let tableBody =
+        document.querySelector("#orders-table tbody");
+
+    // Create a row and its cells
+    let row = document.createElement("TR");
+
+    let idOrderCell =
+        document.createElement("TD");
+
+    let idEmployeeCell =
+        document.createElement("TD");
+
+    let idCustomerCell =
+        document.createElement("TD");
+
+    let totalPriceCell =
+        document.createElement("TD");
+
+    let minutesToProcessCell =
+        document.createElement("TD");
+
+    let orderDateCell =
+        document.createElement("TD");
+
+    let deleteCell =
+        document.createElement("TD");
+
+    // Create Delete button
+    let deleteButton =
+        document.createElement("button");
+
+    // Fill the cells
+    idOrderCell.innerText =
+        newOrder.idOrder;
+
+    idEmployeeCell.innerText =
+        newOrder.idEmployee ?? '';
+
+    idCustomerCell.innerText =
+        newOrder.idCustomer ?? '';
+
+    // A brand-new Order starts at $0.00 because
+    // it does not have any Drinks yet.
+    totalPriceCell.innerText =
+        newOrder.totalPrice;
+
+    minutesToProcessCell.innerText =
+        newOrder.minutesToProcess;
+
+    orderDateCell.innerText =
+        newOrder.orderDate;
+
+    // Configure Delete button
+    deleteButton.innerText = "Delete";
+
+    deleteButton.onclick = function () {
+        deleteOrder(newOrder.idOrder);
+    };
+
+    deleteCell.appendChild(deleteButton);
+
+    // Add the cells to the row
     row.appendChild(idOrderCell);
     row.appendChild(idEmployeeCell);
     row.appendChild(idCustomerCell);
     row.appendChild(totalPriceCell);
-    row.appendChild(minutesCell);
+    row.appendChild(minutesToProcessCell);
+    row.appendChild(orderDateCell);
     row.appendChild(deleteCell);
-    
-    // Add a custom row attribute so the deleteRow function can find a newly added row
-    row.setAttribute('data-value', newRow.id);
 
-    // Add the row to the table
-    currentTable.appendChild(row);
+    // Store the Order ID on the row
+    row.setAttribute(
+        "data-value",
+        newOrder.idOrder
+    );
 
-    // Start of new Step 8 code for adding new data to the dropdown menu for updating people
-    
-    // Find drop down menu, create a new option, fill data in the option (full name, id),
-    // then append option to drop down menu so newly created rows via ajax will be found in it without needing a refresh
-    let selectMenu = document.getElementById("mySelect");
-    let option = document.createElement("option");
-    option.text = newRow.fname + ' ' +  newRow.lname;
-    option.value = newRow.id;
-    selectMenu.add(option);
-    // End of new step 8 code.
-} */
+    // Add the completed row to the table
+    tableBody.appendChild(row);
+
+    // Add the Order to the Update dropdown
+    let selectMenu =
+        document.getElementById("order-select");
+
+    if (selectMenu) {
+
+        let option =
+            document.createElement("option");
+
+        option.text =
+            `Order ${newOrder.idOrder}`;
+
+        option.value =
+            newOrder.idOrder;
+
+        selectMenu.add(option);
+    }
+}

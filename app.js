@@ -56,99 +56,223 @@ app.get('/', (req, res) => {
 //                   CUSTOMERS PAGE START
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-app.get('/customers', function(req, res)
-{
-    // Declare Query 1
-    query1 = "SELECT * FROM Customers;";
+// ----------------------------------------------------
+// CUSTOMER ROUTES
+// ----------------------------------------------------
 
-    db.pool.query(query1, function(error, rows, fields){
-        res.render('customers', {data: rows});
-    })
+// ----------------------------------------------------
+// CUSTOMER ROUTES
+// ----------------------------------------------------
+
+
+// READ: Display all customers
+app.get('/customers', function (req, res) {
+
+    // Get all Customers from the database
+    let query1 = `
+        SELECT * FROM Customers;
+    `;
+
+    db.pool.query(query1, function (error, rows, fields) {
+
+        if (error) {
+            console.log(error);
+            return res.sendStatus(500);
+        }
+
+        // Render customers.hbs and make the returned rows
+        // available inside Handlebars through the variable "data"
+        res.render('customers', {
+            data: rows
+        });
+    });
 });
 
-app.post('/add-customer-ajax', function(req, res) 
-{
-    // Capture the incoming data and parse it back to a JS object
+
+// CREATE: Add a new customer
+app.post('/add-customer-ajax', function (req, res) {
+
+    // Capture the JSON request body
     let data = req.body;
 
-    // Create the query and run it on the database
-    query1 = `INSERT INTO Customers (name, phoneNum, email) VALUES ('${data.name}', '${data.phoneNum}', '${data.email}')`;
-    db.pool.query(query1, function(error, rows, fields){
+    // Clean the incoming values
+    let name = data.name?.trim();
+    let phoneNum = data.phoneNum?.trim() || null;
+    let email = data.email?.trim() || null;
 
-        // Check to see if there was an error
-        if (error) {
+    // Name is required by the database
+    if (!name) {
+        return res.status(400).json({
+            error: "Customer name is required."
+        });
+    }
 
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error)
-            res.sendStatus(400);
-        }
-        else
-        {
-            // If there was no error, perform a SELECT * on Customers
-            query2 = `SELECT * FROM Customers;`;
-            db.pool.query(query2, function(error, rows, fields){
+    // Insert the Customer
+    let insertCustomerQuery = `
+        INSERT INTO Customers (name, phoneNum, email)
+        VALUES (?, ?, ?)
+    `;
 
-                // If there was an error on the second query, send a 400
-                if (error) {
-                    
-                    // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-                    console.log(error);
-                    res.sendStatus(400);
+    db.pool.query(
+        insertCustomerQuery,
+        [name, phoneNum, email],
+        function (error, result, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(400);
+            }
+
+            // MariaDB automatically generated this ID
+            let newCustomerID = result.insertId;
+
+            // Retrieve the actual newly-created row from MariaDB
+            let selectCustomerQuery = `
+                SELECT *
+                FROM Customers
+                WHERE idCustomer = ?
+            `;
+
+            db.pool.query(
+                selectCustomerQuery,
+                [newCustomerID],
+                function (error, rows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    // Since idCustomer is a primary key,
+                    // this SELECT can return at most one Customer.
+                    let newCustomer = rows[0];
+
+                    // Send the actual stored Customer to the browser
+                    res.status(201).json(newCustomer);
                 }
-                // If all went well, send the results of the query back.
-                else
-                {
-                    res.send(rows);
-                }
-            })
+            );
         }
-    })
+    );
 });
 
-app.delete('/delete-customer-ajax/', function(req,res,next){
-  let data = req.body;
-  console.log(data.id);
-  let customerID = parseInt(data.id);
-  let deleteCustomer = `DELETE FROM Customers WHERE idCustomer = ?`;
 
-        // Run the 1st query
-        db.pool.query(deleteCustomer, [customerID], function(error, rows, fields){
+// DELETE: Delete a customer
+app.delete('/delete-customer-ajax', function (req, res) {
+
+    let data = req.body;
+
+    let customerID = parseInt(data.id, 10);
+
+    // Make sure we received a valid ID
+    if (Number.isNaN(customerID)) {
+        return res.status(400).json({
+            error: "A valid customer ID is required."
+        });
+    }
+
+    let deleteCustomerQuery = `
+        DELETE FROM Customers
+        WHERE idCustomer = ?
+    `;
+
+    db.pool.query(
+        deleteCustomerQuery,
+        [customerID],
+        function (error, result, fields) {
+
             if (error) {
-
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error);
-            res.sendStatus(400);
+                console.log(error);
+                return res.sendStatus(400);
             }
 
-            else
-            {
-                res.sendStatus(204)
+            // No Customer with this ID existed
+            if (result.affectedRows === 0) {
+                return res.sendStatus(404);
             }
-})});
 
-app.put('/put-customer-ajax', function(req,res,next){                                   
-  let data = req.body;
+            // Success, with no response body
+            res.sendStatus(204);
+        }
+    );
+});
 
-  let customerID = parseInt(data.id);
-  let name = data.name;
-  let phoneNum = data.phoneNum;
-  let email = data.email;
 
-  queryUpdateCustomer = `UPDATE Customers SET name = ?, phoneNum = ?, email = ? WHERE Customers.idCustomer = ?`;
+// UPDATE: Update a customer
+app.put('/put-customer-ajax', function (req, res) {
 
-        // Run the 1st query
-        db.pool.query(queryUpdateCustomer, [name, phoneNum, email, customerID], function(error, rows, fields){
+    let data = req.body;
+
+    let customerID = parseInt(data.id, 10);
+
+    let name = data.name?.trim();
+    let phoneNum = data.phoneNum?.trim() || null;
+    let email = data.email?.trim() || null;
+
+    // Make sure the ID is valid
+    if (Number.isNaN(customerID)) {
+        return res.status(400).json({
+            error: "A valid customer ID is required."
+        });
+    }
+
+    // Name cannot be NULL or empty
+    if (!name) {
+        return res.status(400).json({
+            error: "Customer name is required."
+        });
+    }
+
+    // Update the Customer
+    let updateCustomerQuery = `
+        UPDATE Customers
+        SET name = ?,
+            phoneNum = ?,
+            email = ?
+        WHERE idCustomer = ?
+    `;
+
+    db.pool.query(
+        updateCustomerQuery,
+        [name, phoneNum, email, customerID],
+        function (error, result, fields) {
+
             if (error) {
-
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error);
-            res.sendStatus(400);
+                console.log(error);
+                return res.sendStatus(400);
             }
 
-            // If there was no error, we run our second query and return that data so we can use it to update the people's
-            // table on the front-end
+            // No Customer matched that ID
+            if (result.affectedRows === 0) {
+                return res.sendStatus(404);
+            }
 
-})});
+            // Retrieve the actual updated row from MariaDB
+            let selectCustomerQuery = `
+                SELECT *
+                FROM Customers
+                WHERE idCustomer = ?
+            `;
+
+            db.pool.query(
+                selectCustomerQuery,
+                [customerID],
+                function (error, rows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    let updatedCustomer = rows[0];
+
+                    // Send the actual stored version back
+                    res.status(200).json(updatedCustomer);
+                }
+            );
+        }
+    );
+});
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                   CUSTOMERS PAGE END
@@ -162,99 +286,224 @@ app.put('/put-customer-ajax', function(req,res,next){
 //                   DRINKS PAGE START
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-app.get('/drinks', function(req, res)
-{
-    // Declare Query 1
-    query1 = "SELECT * FROM Drinks;";
 
-    db.pool.query(query1, function(error, rows, fields){
-        res.render('drinks', {data: rows});
-    })
+// READ: Display all drinks
+app.get('/drinks', function (req, res) {
+
+    // Get all Drinks from the database
+    let query1 = `
+        SELECT * FROM Drinks;
+    `;
+
+    db.pool.query(query1, function (error, rows, fields) {
+
+        if (error) {
+            console.log(error);
+            return res.sendStatus(500);
+        }
+
+        // Render drinks.hbs and make the returned rows
+        // available inside Handlebars through the variable "data"
+        res.render('drinks', {
+            data: rows
+        });
+    });
 });
 
-app.post('/add-drink-ajax', function(req, res) 
-{
-    // Capture the incoming data and parse it back to a JS object
+
+// CREATE: Add a new drink
+app.post('/add-drink-ajax', function (req, res) {
+
+    // Capture the JSON request body
     let data = req.body;
 
-    // Create the query and run it on the database
-    query1 = `INSERT INTO Drinks (name, description, price) VALUES ("${data.name}", "${data.description}", '${parseFloat(data.price)}')`;
-    db.pool.query(query1, function(error, rows, fields){
+    // Clean the incoming values
+    let name = data.name?.trim();
+    let description = data.description?.trim();
+    let price = parseFloat(data.price);
 
-        // Check to see if there was an error
-        if (error) {
+    // All Drink fields are NOT NULL in our database,
+    // so make sure valid values were provided.
+    if (
+        !name ||
+        !description ||
+        Number.isNaN(price)
+    ) {
+        return res.status(400).json({
+            error: "Name, description, and a valid price are required."
+        });
+    }
 
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error)
-            res.sendStatus(400);
-        }
-        else
-        {
-            // If there was no error, perform a SELECT * on Drinks
-            query2 = `SELECT * FROM Drinks;`;
-            db.pool.query(query2, function(error, rows, fields){
+    // Insert the new Drink
+    let insertDrinkQuery = `
+        INSERT INTO Drinks (name, description, price)
+        VALUES (?, ?, ?)
+    `;
 
-                // If there was an error on the second query, send a 400
-                if (error) {
-                    
-                    // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-                    console.log(error);
-                    res.sendStatus(400);
+    db.pool.query(
+        insertDrinkQuery,
+        [name, description, price],
+        function (error, result, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(400);
+            }
+
+            // MariaDB automatically generated the idDrink
+            let newDrinkID = result.insertId;
+
+            // Retrieve the actual newly-created Drink from MariaDB
+            let selectDrinkQuery = `
+                SELECT *
+                FROM Drinks
+                WHERE idDrink = ?
+            `;
+
+            db.pool.query(
+                selectDrinkQuery,
+                [newDrinkID],
+                function (error, rows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    // idDrink is a primary key, so rows[0]
+                    // is the newly-created Drink.
+                    let newDrink = rows[0];
+
+                    // Send the actual stored row back to the browser
+                    res.status(201).json(newDrink);
                 }
-                // If all went well, send the results of the query back.
-                else
-                {
-                    res.send(rows);
-                }
-            })
+            );
         }
-    })
+    );
 });
 
-app.delete('/delete-drink-ajax/', function(req,res,next){
-  let data = req.body;
 
-  let drinkID = parseInt(data.id);
-  let deleteDrink = `DELETE FROM Drinks WHERE idDrink = ?`;
+// DELETE: Delete a drink
+app.delete('/delete-drink-ajax', function (req, res) {
 
-        // Run the 1st query
-        db.pool.query(deleteDrink, [drinkID], function(error, rows, fields){
+    let data = req.body;
+
+    let drinkID = parseInt(data.id, 10);
+
+    // Make sure we received a valid Drink ID
+    if (Number.isNaN(drinkID)) {
+        return res.status(400).json({
+            error: "A valid drink ID is required."
+        });
+    }
+
+    let deleteDrinkQuery = `
+        DELETE FROM Drinks
+        WHERE idDrink = ?
+    `;
+
+    db.pool.query(
+        deleteDrinkQuery,
+        [drinkID],
+        function (error, result, fields) {
+
             if (error) {
-
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error);
-            res.sendStatus(400);
+                console.log(error);
+                return res.sendStatus(400);
             }
 
-            else
-            {
-                res.sendStatus(204);
+            // No Drink with this ID existed
+            if (result.affectedRows === 0) {
+                return res.sendStatus(404);
             }
-})});
 
-app.put('/put-drink-ajax', function(req,res,next){                                   
-  let data = req.body;
+            // Successful DELETE with no response body
+            res.sendStatus(204);
+        }
+    );
+});
 
-  let drinkID = parseInt(data.id);
-  let name = data.name;
-  let desc = data.description;
-  let price = parseFloat(data.price);
 
-  queryUpdateDrink = `UPDATE Drinks SET name = ?, description = ?, price = ? WHERE Drinks.idDrink = ?`;
+// UPDATE: Update a drink
+app.put('/put-drink-ajax', function (req, res) {
 
-        // Run the 1st query
-        db.pool.query(queryUpdateDrink, [name, desc, price, drinkID], function(error, rows, fields){
+    let data = req.body;
+
+    let drinkID = parseInt(data.id, 10);
+
+    let name = data.name?.trim();
+    let description = data.description?.trim();
+    let price = parseFloat(data.price);
+
+    // Validate Drink ID
+    if (Number.isNaN(drinkID)) {
+        return res.status(400).json({
+            error: "A valid drink ID is required."
+        });
+    }
+
+    // Validate the new Drink information
+    if (
+        !name ||
+        !description ||
+        Number.isNaN(price)
+    ) {
+        return res.status(400).json({
+            error: "Name, description, and a valid price are required."
+        });
+    }
+
+    // Update the Drink
+    let updateDrinkQuery = `
+        UPDATE Drinks
+        SET name = ?,
+            description = ?,
+            price = ?
+        WHERE idDrink = ?
+    `;
+
+    db.pool.query(
+        updateDrinkQuery,
+        [name, description, price, drinkID],
+        function (error, result, fields) {
+
             if (error) {
-
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error);
-            res.sendStatus(400);
+                console.log(error);
+                return res.sendStatus(400);
             }
 
-            // If there was no error, we run our second query and return that data so we can use it to update the people's
-            // table on the front-end
+            // No Drink matched that ID
+            if (result.affectedRows === 0) {
+                return res.sendStatus(404);
+            }
 
-})});
+            // Retrieve the actual updated row from MariaDB
+            let selectDrinkQuery = `
+                SELECT *
+                FROM Drinks
+                WHERE idDrink = ?
+            `;
+
+            db.pool.query(
+                selectDrinkQuery,
+                [drinkID],
+                function (error, rows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    let updatedDrink = rows[0];
+
+                    // Send the database's actual stored version
+                    // back to the browser
+                    res.status(200).json(updatedDrink);
+                }
+            );
+        }
+    );
+});
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -268,100 +517,351 @@ app.put('/put-drink-ajax', function(req,res,next){
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                   EMPLOYEES PAGE START
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ----------------------------------------------------
+// EMPLOYEE ROUTES
+// ----------------------------------------------------
 
-app.get('/employees', function(req, res)
-{
-    // Declare Query 1
-    let query1 = "SELECT * FROM Employees;";
 
-    db.pool.query(query1, function(error, rows, fields){
-        res.render('employees', {data: rows});
-    })
+// READ: Display all employees
+app.get('/employees', function (req, res) {
+
+    // Get all Employees from the database
+    let query1 = `
+        SELECT * FROM Employees;
+    `;
+
+    db.pool.query(query1, function (error, rows, fields) {
+
+        if (error) {
+            console.log(error);
+            return res.sendStatus(500);
+        }
+
+        // Render employees.hbs and make the returned rows
+        // available inside Handlebars through the variable "data"
+        res.render('employees', {
+            data: rows
+        });
+    });
 });
 
-app.post('/add-employee-ajax', function(req, res) 
-{
-    // Capture the incoming data and parse it back to a JS object
+
+// CREATE: Add a new employee
+app.post('/add-employee-ajax', function (req, res) {
+
+    // Capture the JSON request body
     let data = req.body;
 
-    // Create the query and run it on the database
-    query1 = `INSERT INTO Employees (name, idPassword, phoneNum, email, address) VALUES ('${data.name}', '${data.idPassword}', '${data.phoneNum}', '${data.email}', '${data.address}')`;
-    db.pool.query(query1, function(error, rows, fields){
+    // Clean the incoming values
+    let name = data.name?.trim();
+    let password = data.password?.trim();
+    let phoneNum = data.phoneNum?.trim();
+    let email = data.email?.trim();
+    let address = data.address?.trim();
 
-        // Check to see if there was an error
-        if (error) {
+    // All Employee fields are required by our database
+    if (
+        !name ||
+        !password ||
+        !phoneNum ||
+        !email ||
+        !address
+    ) {
+        return res.status(400).json({
+            error: "All employee fields are required."
+        });
+    }
 
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error)
-            res.sendStatus(400);
-        }
-        else
-        {
-            query2 = `SELECT * FROM Employees;`;
-            db.pool.query(query2, function(error, rows, fields) {
+    // STEP 1:
+    // Create the Password record first.
+    let insertPasswordQuery = `
+        INSERT INTO Passwords (password)
+        VALUES (?)
+    `;
 
-                if (error) {
+    db.pool.query(
+        insertPasswordQuery,
+        [password],
+        function (error, passwordResult, fields) {
 
-                    console.log(error)
-                    res.sendStatus(400);
+            if (error) {
+                console.log(error);
+                return res.sendStatus(400);
+            }
+
+            // MariaDB created the idPassword for us
+            let newPasswordID = passwordResult.insertId;
+
+
+            // STEP 2:
+            // Create the Employee and connect it to
+            // the new Password row using idPassword.
+            let insertEmployeeQuery = `
+                INSERT INTO Employees
+                    (name, idPassword, phoneNum, email, address)
+                VALUES (?, ?, ?, ?, ?)
+            `;
+
+            db.pool.query(
+                insertEmployeeQuery,
+                [
+                    name,
+                    newPasswordID,
+                    phoneNum,
+                    email,
+                    address
+                ],
+                function (error, employeeResult, fields) {
+
+                    if (error) {
+                        console.log(error);
+
+                        // The Password was already created, but the Employee
+                        // could not be created. Delete the unused Password row.
+                        let cleanupPasswordQuery = `
+                            DELETE FROM Passwords
+                            WHERE idPassword = ?
+                        `;
+
+                        return db.pool.query(
+                            cleanupPasswordQuery,
+                            [newPasswordID],
+                            function (cleanupError) {
+
+                                if (cleanupError) {
+                                    console.log(cleanupError);
+                                }
+
+                                return res.sendStatus(400);
+                            }
+                        );
+                    }
+
+
+                    // STEP 3:
+                    // Get the actual Employee row back FROM MariaDB.
+                    let newEmployeeID = employeeResult.insertId;
+
+                    let selectEmployeeQuery = `
+                        SELECT *
+                        FROM Employees
+                        WHERE idEmployee = ?
+                    `;
+
+                    db.pool.query(
+                        selectEmployeeQuery,
+                        [newEmployeeID],
+                        function (error, rows, fields) {
+
+                            if (error) {
+                                console.log(error);
+                                return res.sendStatus(500);
+                            }
+
+                            // idEmployee is the primary key,
+                            // so rows[0] is the newly-created Employee.
+                            let newEmployee = rows[0];
+
+                            // Send the actual stored Employee back to the browser
+                            res.status(201).json(newEmployee);
+                        }
+                    );
                 }
-                else {
-                    res.send(rows);
-                }
-            })
-            
+            );
         }
-    })
+    );
 });
 
-app.delete('/delete-employee-ajax/', function(req,res,next){
-  let data = req.body;
 
-  let employeeID = parseInt(data.id);
+// DELETE: Delete an employee
+app.delete('/delete-employee-ajax', function (req, res) {
 
-  let deleteEmployee = `DELETE FROM Employees WHERE idEmployee = '${employeeID}'`;
+    let data = req.body;
 
-        // Run the 1st query
-        db.pool.query(deleteEmployee, function(error, rows, fields){
+    let employeeID = parseInt(data.id, 10);
+
+    // Validate the Employee ID
+    if (Number.isNaN(employeeID)) {
+        return res.status(400).json({
+            error: "A valid employee ID is required."
+        });
+    }
+
+
+    // STEP 1:
+    // Get this Employee's idPassword before deleting the Employee.
+    let selectEmployeeQuery = `
+        SELECT idPassword
+        FROM Employees
+        WHERE idEmployee = ?
+    `;
+
+    db.pool.query(
+        selectEmployeeQuery,
+        [employeeID],
+        function (error, rows, fields) {
+
             if (error) {
-
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error);
-            res.sendStatus(400);
+                console.log(error);
+                return res.sendStatus(500);
             }
 
-            else
-            {
-                res.sendStatus(204);
-
+            // No Employee with this ID exists
+            if (rows.length === 0) {
+                return res.sendStatus(404);
             }
-})});
 
-app.put('/put-employee-ajax', function(req,res,next){                                   
-  let data = req.body;
+            let passwordID = rows[0].idPassword;
 
-  let id = data.id;
-  let name = data.name;
-  let phoneNum = data.phoneNum;
-  let email = data.email;
-  let address = data.address;
 
-  queryUpdateEmployee = `UPDATE Employees SET name = '${name}', phoneNum = '${phoneNum}', email = '${email}', address = '${address}' WHERE idEmployee = '${id}'`;
+            // STEP 2:
+            // Delete the Employee.
+            //
+            // Orders.idEmployee uses ON DELETE SET NULL,
+            // so existing Orders will remain in the database.
+            let deleteEmployeeQuery = `
+                DELETE FROM Employees
+                WHERE idEmployee = ?
+            `;
 
-        // Run the 1st query
-        db.pool.query(queryUpdateEmployee, function(error, rows, fields){
+            db.pool.query(
+                deleteEmployeeQuery,
+                [employeeID],
+                function (error, result, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(400);
+                    }
+
+
+                    // STEP 3:
+                    // Delete the Password row if no other Employee
+                    // is using it.
+                    //
+                    // Under our intended design, each Employee has
+                    // their own Password row.
+                    let deletePasswordQuery = `
+                        DELETE FROM Passwords
+                        WHERE idPassword = ?
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM Employees
+                            WHERE idPassword = ?
+                        )
+                    `;
+
+                    db.pool.query(
+                        deletePasswordQuery,
+                        [passwordID, passwordID],
+                        function (error, result, fields) {
+
+                            if (error) {
+                                console.log(error);
+                                return res.sendStatus(500);
+                            }
+
+                            // Successful DELETE with no response body
+                            res.sendStatus(204);
+                        }
+                    );
+                }
+            );
+        }
+    );
+});
+
+
+// UPDATE: Update an employee
+app.put('/put-employee-ajax', function (req, res) {
+
+    let data = req.body;
+
+    let employeeID = parseInt(data.id, 10);
+
+    let name = data.name?.trim();
+    let phoneNum = data.phoneNum?.trim();
+    let email = data.email?.trim();
+    let address = data.address?.trim();
+
+    // Validate Employee ID
+    if (Number.isNaN(employeeID)) {
+        return res.status(400).json({
+            error: "A valid employee ID is required."
+        });
+    }
+
+    // All Employee information being updated is required
+    if (
+        !name ||
+        !phoneNum ||
+        !email ||
+        !address
+    ) {
+        return res.status(400).json({
+            error: "Name, phone number, email, and address are required."
+        });
+    }
+
+    // Update the Employee
+    let updateEmployeeQuery = `
+        UPDATE Employees
+        SET name = ?,
+            phoneNum = ?,
+            email = ?,
+            address = ?
+        WHERE idEmployee = ?
+    `;
+
+    db.pool.query(
+        updateEmployeeQuery,
+        [
+            name,
+            phoneNum,
+            email,
+            address,
+            employeeID
+        ],
+        function (error, result, fields) {
+
             if (error) {
-
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error);
-            res.sendStatus(400);
+                console.log(error);
+                return res.sendStatus(400);
             }
 
-            // If there was no error, we run our second query and return that data so we can use it to update the people's
-            // table on the front-end
 
-})});
+            // Retrieve the actual updated Employee from MariaDB
+            let selectEmployeeQuery = `
+                SELECT *
+                FROM Employees
+                WHERE idEmployee = ?
+            `;
 
+            db.pool.query(
+                selectEmployeeQuery,
+                [employeeID],
+                function (error, rows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    // No Employee with that ID existed
+                    if (rows.length === 0) {
+                        return res.sendStatus(404);
+                    }
+
+                    let updatedEmployee = rows[0];
+
+                    // Send the database's actual stored version
+                    // back to the browser
+                    res.status(200).json(updatedEmployee);
+                }
+            );
+        }
+    );
+});
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                   EMPLOYEES PAGE END
@@ -374,100 +874,303 @@ app.put('/put-employee-ajax', function(req,res,next){
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                   ORDERS PAGE START
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-app.get('/orders', function(req, res)
-{
-    // Declare Query 1
-    let query1 = "SELECT * FROM Orders;";
-    let query2 = "SELECT * FROM Customers;";
-    let query3 = "SELECT * FROM Employees;";
 
-    db.pool.query(query1, function(error, rows, fields){
-        db.pool.query(query2, function(error2, rows2, fields2){
-            db.pool.query(query3, function(error3, rows3, fields3){
-                res.render('orders', {orderData: rows, customerData: rows2, employeeData: rows3});
-            })
-        })
-        //res.render('orders', {data: rows});
-    })
+
+// READ: Display all Orders
+app.get('/orders', function (req, res) {
+
+    // Get all Orders
+    let orderQuery = `
+        SELECT
+            idOrder,
+            idEmployee,
+            idCustomer,
+            totalPrice,
+            minutesToProcess,
+            DATE_FORMAT(orderDate, '%Y-%m-%d') AS orderDate
+        FROM Orders;
+    `;
+
+    // Get Customers for the Customer dropdowns
+    let customerQuery = `
+        SELECT idCustomer, name
+        FROM Customers;
+    `;
+
+    // Get Employees for the Employee dropdowns
+    let employeeQuery = `
+        SELECT idEmployee, name
+        FROM Employees;
+    `;
+
+    db.pool.query(
+        orderQuery,
+        function (error, orderRows, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(500);
+            }
+
+            db.pool.query(
+                customerQuery,
+                function (error, customerRows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    db.pool.query(
+                        employeeQuery,
+                        function (error, employeeRows, fields) {
+
+                            if (error) {
+                                console.log(error);
+                                return res.sendStatus(500);
+                            }
+
+                            // Render orders.hbs and provide all three
+                            // sets of database information.
+                            res.render('orders', {
+                                orderData: orderRows,
+                                customerData: customerRows,
+                                employeeData: employeeRows
+                            });
+                        }
+                    );
+                }
+            );
+        }
+    );
 });
 
 
-app.post('/add-order-ajax', function(req, res) 
-{
-    // Capture the incoming data and parse it back to a JS object
+// CREATE: Add a new Order
+app.post('/add-order-ajax', function (req, res) {
+
+    // Capture the JSON request body
     let data = req.body;
 
-    // Create the query and run it on the database
-    query1 = `INSERT INTO Orders (idEmployee, idCustomer, totalPrice, minutesToProcess, orderDate) VALUES ('${parseInt(data.employee)}', '${parseInt(data.customer)}', '${0}', '${parseFloat(data.minutes)}', '${data.date}')`;
-    db.pool.query(query1, function(error, rows, fields){
+    let employeeID = parseInt(data.idEmployee, 10);
+    let customerID = parseInt(data.idCustomer, 10);
+    let minutesToProcess = parseFloat(data.minutesToProcess);
+    let orderDate = data.orderDate?.trim();
 
-        // Check to see if there was an error
-        if (error) {
+    // Validate the incoming values
+    if (
+        Number.isNaN(employeeID) ||
+        Number.isNaN(customerID) ||
+        Number.isNaN(minutesToProcess) ||
+        !orderDate
+    ) {
+        return res.status(400).json({
+            error: "Employee, customer, processing time, and order date are required."
+        });
+    }
 
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error)
-            res.sendStatus(400);
-        }
-        else
-        {
-            query2 = `SELECT * FROM Orders;`;
-            db.pool.query(query2, function(error, rows, fields) {
+    if (minutesToProcess < 0) {
+        return res.status(400).json({
+            error: "Processing time cannot be negative."
+        });
+    }
 
-                if (error) {
+    // totalPrice is NOT supplied here.
+    //
+    // MariaDB will initialize it to 0.00 because the new Order
+    // does not have any Drinks yet.
+    let insertOrderQuery = `
+        INSERT INTO Orders
+            (idEmployee, idCustomer, minutesToProcess, orderDate)
+        VALUES (?, ?, ?, ?)
+    `;
 
-                    console.log(error)
-                    res.sendStatus(400);
+    db.pool.query(
+        insertOrderQuery,
+        [
+            employeeID,
+            customerID,
+            minutesToProcess,
+            orderDate
+        ],
+        function (error, result, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(400);
+            }
+
+            let newOrderID = result.insertId;
+
+            // Retrieve the actual newly-created Order from MariaDB
+            let selectOrderQuery = `
+                SELECT
+                    idOrder,
+                    idEmployee,
+                    idCustomer,
+                    totalPrice,
+                    minutesToProcess,
+                    DATE_FORMAT(orderDate, '%Y-%m-%d') AS orderDate
+                FROM Orders
+                WHERE idOrder = ?
+            `;
+
+            db.pool.query(
+                selectOrderQuery,
+                [newOrderID],
+                function (error, rows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    let newOrder = rows[0];
+
+                    // Send the actual stored Order back to the browser
+                    res.status(201).json(newOrder);
                 }
-                else {
-                    res.send(rows);
-                }
-            })
-            
+            );
         }
-    })
+    );
 });
 
-app.delete('/delete-order-ajax/', function(req,res,next){
-    let data = req.body;
-  
-    let orderID = parseInt(data.id);
-  
-    let deleteOrder = `DELETE FROM Orders WHERE idOrder = '${orderID}'`;
-  
-          // Run the 1st query
-          db.pool.query(deleteOrder, function(error, rows, fields){
-              if (error) {
-  
-              // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-              console.log(error);
-              res.sendStatus(400);
-              }
-  
-              else
-              {
-                  res.sendStatus(204);
-  
-              }
-  })});
 
-  app.put('/put-order-ajax', function(req,res,next){                                   
+// DELETE: Delete an Order
+app.delete('/delete-order-ajax', function (req, res) {
+
     let data = req.body;
-  
-    queryUpdateOrder = `UPDATE Orders SET idEmployee = '${parseInt(data.employee)}', idCustomer = '${parseInt(data.customer)}', totalPrice = '${0}', minutesToProcess = '${parseFloat(data.minutes)}', orderDate = '${data.date}' WHERE idOrder = '${data.orderID}'`; 
-  
-          // Run the 1st query
-          db.pool.query(queryUpdateOrder, function(error, rows, fields){
-              if (error) {
-  
-              // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-              console.log(error);
-              res.sendStatus(400);
-              }
-  
-              // If there was no error, we run our second query and return that data so we can use it to update the people's
-              // table on the front-end
-  
-  })});
+
+    let orderID = parseInt(data.id, 10);
+
+    if (Number.isNaN(orderID)) {
+        return res.status(400).json({
+            error: "A valid order ID is required."
+        });
+    }
+
+    let deleteOrderQuery = `
+        DELETE FROM Orders
+        WHERE idOrder = ?
+    `;
+
+    db.pool.query(
+        deleteOrderQuery,
+        [orderID],
+        function (error, result, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(400);
+            }
+
+            if (result.affectedRows === 0) {
+                return res.sendStatus(404);
+            }
+
+            // Orders_Drinks uses ON DELETE CASCADE.
+            //
+            // Therefore, deleting the Order automatically deletes
+            // its Orders_Drinks relationship rows.
+            res.sendStatus(204);
+        }
+    );
+});
+
+
+// UPDATE: Update an Order
+app.put('/put-order-ajax', function (req, res) {
+
+    let data = req.body;
+
+    let orderID = parseInt(data.id, 10);
+    let employeeID = parseInt(data.idEmployee, 10);
+    let customerID = parseInt(data.idCustomer, 10);
+    let minutesToProcess = parseFloat(data.minutesToProcess);
+    let orderDate = data.orderDate?.trim();
+
+    // Validate the incoming values
+    if (
+        Number.isNaN(orderID) ||
+        Number.isNaN(employeeID) ||
+        Number.isNaN(customerID) ||
+        Number.isNaN(minutesToProcess) ||
+        !orderDate
+    ) {
+        return res.status(400).json({
+            error: "Valid Order, Employee, Customer, processing time, and date values are required."
+        });
+    }
+
+    if (minutesToProcess < 0) {
+        return res.status(400).json({
+            error: "Processing time cannot be negative."
+        });
+    }
+
+    // totalPrice is deliberately NOT updated here.
+    //
+    // It is calculated from Orders_Drinks and Drinks instead.
+    let updateOrderQuery = `
+        UPDATE Orders
+        SET idEmployee = ?,
+            idCustomer = ?,
+            minutesToProcess = ?,
+            orderDate = ?
+        WHERE idOrder = ?
+    `;
+
+    db.pool.query(
+        updateOrderQuery,
+        [
+            employeeID,
+            customerID,
+            minutesToProcess,
+            orderDate,
+            orderID
+        ],
+        function (error, result, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(400);
+            }
+
+            // Retrieve the actual updated Order from MariaDB
+            let selectOrderQuery = `
+                SELECT
+                    idOrder,
+                    idEmployee,
+                    idCustomer,
+                    totalPrice,
+                    minutesToProcess,
+                    DATE_FORMAT(orderDate, '%Y-%m-%d') AS orderDate
+                FROM Orders
+                WHERE idOrder = ?
+            `;
+
+            db.pool.query(
+                selectOrderQuery,
+                [orderID],
+                function (error, rows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    if (rows.length === 0) {
+                        return res.sendStatus(404);
+                    }
+
+                    let updatedOrder = rows[0];
+
+                    res.status(200).json(updatedOrder);
+                }
+            );
+        }
+    );
+});
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                   ORDERS PAGE END
@@ -480,121 +1183,542 @@ app.delete('/delete-order-ajax/', function(req,res,next){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                   ORDERS_DRINKS PAGE START
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-app.get('/orders_drinks', function(req, res)
-{
-
-
-    let query1 = "SELECT * FROM Orders_Drinks;";               // Define our query
-
-    db.pool.query(query1, function(error, rows, fields){    // Execute the query
-
-        res.render('orders_drinks', {data: rows});                  // Render the index.hbs file, and also send the renderer
-    })
+// ----------------------------------------------------
+// ORDERS_DRINKS ROUTES
+// ----------------------------------------------------
 
 
-/*
-    // Declare Query 1
-    let query1 = "SELECT * FROM Orders_Drinks;";
-    let query2 = "SELECT * FROM Customers;";
-    let query3 = "SELECT * FROM Employees;";
+// READ: Display all Order-Drink relationships
+app.get('/orders_drinks', function (req, res) {
 
-    db.pool.query(query1, function(error, rows, fields){
-        db.pool.query(query2, function(error2, rows2, fields2){
-            db.pool.query(query3, function(error3, rows3, fields3){
-                res.render('orders_drinks', {order_drinkData: rows, customerData: rows2, employeeData: rows3});
-            })
-        })
-    })
-    */
+    // Get all Order-Drink relationships
+    let orderDrinkQuery = `
+        SELECT
+            Orders_Drinks.idOrderDrink,
+            Orders_Drinks.idOrder,
+            Orders_Drinks.idDrink,
+            Drinks.name AS drinkName,
+            Orders_Drinks.quantity,
+            Orders_Drinks.drinkTotal
+        FROM Orders_Drinks
+        INNER JOIN Drinks
+            ON Orders_Drinks.idDrink = Drinks.idDrink
+        ORDER BY Orders_Drinks.idOrderDrink;
+    `;
+
+    // Get Orders for the dropdowns
+    let orderQuery = `
+        SELECT idOrder
+        FROM Orders
+        ORDER BY idOrder;
+    `;
+
+    // Get Drinks for the dropdowns
+    let drinkQuery = `
+        SELECT idDrink, name, price
+        FROM Drinks
+        ORDER BY idDrink;
+    `;
+
+    db.pool.query(
+        orderDrinkQuery,
+        function (error, orderDrinkRows, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(500);
+            }
+
+            db.pool.query(
+                orderQuery,
+                function (error, orderRows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    db.pool.query(
+                        drinkQuery,
+                        function (error, drinkRows, fields) {
+
+                            if (error) {
+                                console.log(error);
+                                return res.sendStatus(500);
+                            }
+
+                            res.render('orders_drinks', {
+                                orderDrinkData: orderDrinkRows,
+                                orderData: orderRows,
+                                drinkData: drinkRows
+                            });
+                        }
+                    );
+                }
+            );
+        }
+    );
 });
 
-app.post('/add-order_drink-ajax', function(req, res) 
-{
-    // Capture the incoming data and parse it back to a JS object
+
+// CREATE: Add a Drink to an Order
+app.post('/add-order_drink-ajax', function (req, res) {
+
     let data = req.body;
 
-    // Create the query and run it on the database
-    query1 = `INSERT INTO Orders-Drinks (idEmployee, idCustomer, totalPrice, minutesToProcess, orderDate) VALUES ('${parseInt(data.employee)}', '${parseInt(data.customer)}', '${0}', '${parseFloat(data.minutes)}', '${data.date}')`;
-    db.pool.query(query1, function(error, rows, fields){
+    let orderID = parseInt(data.idOrder, 10);
+    let drinkID = parseInt(data.idDrink, 10);
+    let quantity = parseInt(data.quantity, 10);
 
-        // Check to see if there was an error
-        if (error) {
+    // Validate incoming values
+    if (
+        Number.isNaN(orderID) ||
+        Number.isNaN(drinkID) ||
+        Number.isNaN(quantity) ||
+        quantity <= 0
+    ) {
+        return res.status(400).json({
+            error: "A valid Order, Drink, and quantity greater than zero are required."
+        });
+    }
 
-            // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-            console.log(error)
-            res.sendStatus(400);
-        }
-        else
-        {
-            query2 = `SELECT * FROM Orders_Drinks;`;
-            db.pool.query(query2, function(error, rows, fields) {
 
-                if (error) {
+    // STEP 1:
+    // Get the Drink's current price from MariaDB.
+    //
+    // The browser does NOT tell us what the Drink costs.
+    // The database is the authoritative source for price.
+    let selectDrinkQuery = `
+        SELECT price
+        FROM Drinks
+        WHERE idDrink = ?
+    `;
 
-                    console.log(error)
-                    res.sendStatus(400);
+    db.pool.query(
+        selectDrinkQuery,
+        [drinkID],
+        function (error, drinkRows, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(500);
+            }
+
+            if (drinkRows.length === 0) {
+                return res.status(404).json({
+                    error: "Drink not found."
+                });
+            }
+
+            let drinkPrice = parseFloat(drinkRows[0].price);
+
+            // Calculate this line item's total
+            let drinkTotal = drinkPrice * quantity;
+
+
+            // STEP 2:
+            // Add the Drink to the Order.
+            let insertOrderDrinkQuery = `
+                INSERT INTO Orders_Drinks
+                    (idOrder, idDrink, quantity, drinkTotal)
+                VALUES (?, ?, ?, ?)
+            `;
+
+            db.pool.query(
+                insertOrderDrinkQuery,
+                [
+                    orderID,
+                    drinkID,
+                    quantity,
+                    drinkTotal
+                ],
+                function (error, result, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(400);
+                    }
+
+                    let newOrderDrinkID = result.insertId;
+
+
+                    // STEP 3:
+                    // Recalculate the entire Order's total price.
+                    recalculateOrderTotal(
+                        orderID,
+                        function (error, result) {
+
+                            if (error) {
+                                console.log(error);
+                                return res.sendStatus(500);
+                            }
+
+
+                            // STEP 4:
+                            // Read the actual newly-created row
+                            // back from MariaDB.
+                            let selectOrderDrinkQuery = `
+                                SELECT
+                                    Orders_Drinks.idOrderDrink,
+                                    Orders_Drinks.idOrder,
+                                    Orders_Drinks.idDrink,
+                                    Drinks.name AS drinkName,
+                                    Orders_Drinks.quantity,
+                                    Orders_Drinks.drinkTotal
+                                FROM Orders_Drinks
+                                INNER JOIN Drinks
+                                    ON Orders_Drinks.idDrink = Drinks.idDrink
+                                WHERE Orders_Drinks.idOrderDrink = ?
+                            `;
+
+                            db.pool.query(
+                                selectOrderDrinkQuery,
+                                [newOrderDrinkID],
+                                function (error, rows, fields) {
+
+                                    if (error) {
+                                        console.log(error);
+                                        return res.sendStatus(500);
+                                    }
+
+                                    let newOrderDrink = rows[0];
+
+                                    res.status(201).json(newOrderDrink);
+                                }
+                            );
+                        }
+                    );
                 }
-                else {
-                    res.send(rows);
-                }
-            })
-            
+            );
         }
-    })
+    );
 });
 
-app.delete('/delete-order_drink-ajax/', function(req,res,next){
-    let data = req.body;
-  
-    let orderDrinkID = parseInt(data.id);
-  
-    let deleteOrderDrink = `DELETE FROM Orders_Drinks WHERE idOrderDrink = '${orderDrinkID}'`;
-  
-          // Run the 1st query
-          db.pool.query(deleteOrderDrink, function(error, rows, fields){
-              if (error) {
-  
-              // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-              console.log(error);
-              res.sendStatus(400);
-              }
-  
-              else
-              {
-                  res.sendStatus(204);
-  
-              }
-  })});
 
-app.put('/put-order_drink-ajax', function(req,res,next){                                   
-    let data = req.body;
-  
-    queryUpdateOrderDrink = `UPDATE Orders_Drinks SET idEmployee = '${parseInt(data.employee)}', idCustomer = '${parseInt(data.customer)}', totalPrice = '${0}', minutesToProcess = '${parseFloat(data.minutes)}', orderDate = '${data.date}' WHERE idOrderDrink = '${data.orderDrinkID}'`; 
-  
-          // Run the 1st query
-          db.pool.query(queryUpdateOrderDrink, function(error, rows, fields){
-              if (error) {
-  
-              // Log the error to the terminal so we know what went wrong, and send the visitor an HTTP response 400 indicating it was a bad request.
-              console.log(error);
-              res.sendStatus(400);
-              }
-  
-              // If there was no error, we run our second query and return that data so we can use it to update the people's
-              // table on the front-end
-  
-  })});
+// DELETE: Remove a Drink from an Order
+app.delete('/delete-order_drink-ajax', function (req, res) {
 
+    let data = req.body;
+
+    let orderDrinkID = parseInt(data.id, 10);
+
+    if (Number.isNaN(orderDrinkID)) {
+        return res.status(400).json({
+            error: "A valid Order-Drink ID is required."
+        });
+    }
+
+
+    // STEP 1:
+    // Find the Order this line item belongs to.
+    //
+    // We need the idOrder because after deleting the line item,
+    // we need to recalculate that Order's total price.
+    let selectOrderDrinkQuery = `
+        SELECT idOrder
+        FROM Orders_Drinks
+        WHERE idOrderDrink = ?
+    `;
+
+    db.pool.query(
+        selectOrderDrinkQuery,
+        [orderDrinkID],
+        function (error, rows, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(500);
+            }
+
+            if (rows.length === 0) {
+                return res.sendStatus(404);
+            }
+
+            let orderID = rows[0].idOrder;
+
+
+            // STEP 2:
+            // Delete the Order-Drink relationship.
+            let deleteOrderDrinkQuery = `
+                DELETE FROM Orders_Drinks
+                WHERE idOrderDrink = ?
+            `;
+
+            db.pool.query(
+                deleteOrderDrinkQuery,
+                [orderDrinkID],
+                function (error, result, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(400);
+                    }
+
+
+                    // STEP 3:
+                    // Recalculate the Order's total now that
+                    // one Drink line item has been removed.
+                    recalculateOrderTotal(
+                        orderID,
+                        function (error, result) {
+
+                            if (error) {
+                                console.log(error);
+                                return res.sendStatus(500);
+                            }
+
+                            res.sendStatus(204);
+                        }
+                    );
+                }
+            );
+        }
+    );
+});
+
+
+// UPDATE: Update a Drink belonging to an Order
+app.put('/put-order_drink-ajax', function (req, res) {
+
+    let data = req.body;
+
+    let orderDrinkID = parseInt(data.id, 10);
+    let newOrderID = parseInt(data.idOrder, 10);
+    let drinkID = parseInt(data.idDrink, 10);
+    let quantity = parseInt(data.quantity, 10);
+
+    if (
+        Number.isNaN(orderDrinkID) ||
+        Number.isNaN(newOrderID) ||
+        Number.isNaN(drinkID) ||
+        Number.isNaN(quantity) ||
+        quantity <= 0
+    ) {
+        return res.status(400).json({
+            error: "Valid Order-Drink, Order, Drink, and quantity values are required."
+        });
+    }
+
+
+    // STEP 1:
+    // Find the original Order.
+    //
+    // If the user moves this line item to another Order,
+    // BOTH Order totals need to be recalculated.
+    let selectOriginalOrderQuery = `
+        SELECT idOrder
+        FROM Orders_Drinks
+        WHERE idOrderDrink = ?
+    `;
+
+    db.pool.query(
+        selectOriginalOrderQuery,
+        [orderDrinkID],
+        function (error, orderDrinkRows, fields) {
+
+            if (error) {
+                console.log(error);
+                return res.sendStatus(500);
+            }
+
+            if (orderDrinkRows.length === 0) {
+                return res.sendStatus(404);
+            }
+
+            let oldOrderID = orderDrinkRows[0].idOrder;
+
+
+            // STEP 2:
+            // Get the current Drink price.
+            let selectDrinkQuery = `
+                SELECT price
+                FROM Drinks
+                WHERE idDrink = ?
+            `;
+
+            db.pool.query(
+                selectDrinkQuery,
+                [drinkID],
+                function (error, drinkRows, fields) {
+
+                    if (error) {
+                        console.log(error);
+                        return res.sendStatus(500);
+                    }
+
+                    if (drinkRows.length === 0) {
+                        return res.sendStatus(404);
+                    }
+
+                    let drinkPrice = parseFloat(
+                        drinkRows[0].price
+                    );
+
+                    let drinkTotal =
+                        drinkPrice * quantity;
+
+
+                    // STEP 3:
+                    // Update the Order-Drink relationship.
+                    let updateOrderDrinkQuery = `
+                        UPDATE Orders_Drinks
+                        SET idOrder = ?,
+                            idDrink = ?,
+                            quantity = ?,
+                            drinkTotal = ?
+                        WHERE idOrderDrink = ?
+                    `;
+
+                    db.pool.query(
+                        updateOrderDrinkQuery,
+                        [
+                            newOrderID,
+                            drinkID,
+                            quantity,
+                            drinkTotal,
+                            orderDrinkID
+                        ],
+                        function (error, result, fields) {
+
+                            if (error) {
+                                console.log(error);
+                                return res.sendStatus(400);
+                            }
+
+
+                            // STEP 4:
+                            // Recalculate the original Order.
+                            recalculateOrderTotal(
+                                oldOrderID,
+                                function (error, result) {
+
+                                    if (error) {
+                                        console.log(error);
+                                        return res.sendStatus(500);
+                                    }
+
+
+                                    // STEP 5:
+                                    // If this line item was moved to
+                                    // another Order, recalculate that
+                                    // Order as well.
+                                    function finishUpdate() {
+
+                                        let selectUpdatedQuery = `
+                                            SELECT
+                                                Orders_Drinks.idOrderDrink,
+                                                Orders_Drinks.idOrder,
+                                                Orders_Drinks.idDrink,
+                                                Drinks.name AS drinkName,
+                                                Orders_Drinks.quantity,
+                                                Orders_Drinks.drinkTotal
+                                            FROM Orders_Drinks
+                                            INNER JOIN Drinks
+                                                ON Orders_Drinks.idDrink = Drinks.idDrink
+                                            WHERE Orders_Drinks.idOrderDrink = ?
+                                        `;
+
+                                        db.pool.query(
+                                            selectUpdatedQuery,
+                                            [orderDrinkID],
+                                            function (error, rows, fields) {
+
+                                                if (error) {
+                                                    console.log(error);
+                                                    return res.sendStatus(500);
+                                                }
+
+                                                let updatedOrderDrink =
+                                                    rows[0];
+
+                                                res.status(200).json(
+                                                    updatedOrderDrink
+                                                );
+                                            }
+                                        );
+                                    }
+
+
+                                    if (newOrderID !== oldOrderID) {
+
+                                        recalculateOrderTotal(
+                                            newOrderID,
+                                            function (error, result) {
+
+                                                if (error) {
+                                                    console.log(error);
+                                                    return res.sendStatus(500);
+                                                }
+
+                                                finishUpdate();
+                                            }
+                                        );
+
+                                    } else {
+
+                                        finishUpdate();
+                                    }
+                                }
+                            );
+                        }
+                    );
+                }
+            );
+        }
+    );
+});
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                   ORDERS-DRINKS PAGE END
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
+
+
+
+
+/////////////// HELPER FUNCTIONS /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// ----------------------------------------------------
+// ORDER TOTAL HELPER
+// ----------------------------------------------------
+
+
+// Recalculate an Order's total price based on the Drinks
+// currently associated with that Order.
+//
+// totalPrice = SUM(Drink price * quantity)
+function recalculateOrderTotal(orderID, callback) {
+
+    let query = `
+        UPDATE Orders
+        SET totalPrice = (
+            SELECT COALESCE(
+                SUM(Orders_Drinks.quantity * Drinks.price),
+                0
+            )
+            FROM Orders_Drinks
+            INNER JOIN Drinks
+                ON Orders_Drinks.idDrink = Drinks.idDrink
+            WHERE Orders_Drinks.idOrder = ?
+        )
+        WHERE idOrder = ?
+    `;
+
+    db.pool.query(
+        query,
+        [orderID, orderID],
+        function (error, result, fields) {
+
+            callback(error, result);
+        }
+    );
+}
+
+
 /*
     LISTENER
 */
-app.listen(PORT, function(){            // This is the basic syntax for what is called the 'listener' which receives incoming requests on the specified PORT.
+app.listen(PORT, function () {            // This is the basic syntax for what is called the 'listener' which receives incoming requests on the specified PORT.
     console.log('Express started on http://localhost:' + PORT + '; press Ctrl-C to terminate.')
 });

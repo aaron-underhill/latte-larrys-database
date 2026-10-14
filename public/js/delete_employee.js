@@ -1,41 +1,72 @@
 // Code adapted from nodejs-start-app from course github to fit our database
 
-// code for deleteEmployee using regular javascript/xhttp
+
+// Delete an Employee
 function deleteEmployee(employeeID) {
-    // Put our data we want to send in a javascript object
+
+    // Put our data we want to send in a JavaScript object
     let data = {
-        id: employeeID,
+        id: employeeID
     };
-    
+
     // Setup our AJAX request
-    var xhttp = new XMLHttpRequest();
+    let xhttp = new XMLHttpRequest();
+
     xhttp.open("DELETE", "/delete-employee-ajax", true);
+
     xhttp.setRequestHeader("Content-type", "application/json");
 
     // Tell our AJAX request how to resolve
     xhttp.onreadystatechange = () => {
+
         if (xhttp.readyState == 4 && xhttp.status == 204) {
 
-            // Add the new data to the table
+            // Remove the Employee from the HTML table
             deleteRow(employeeID);
+
+            // Remove the Employee from the Update dropdown
+            deleteEmployeeFromDropdown(employeeID);
         }
+
         else if (xhttp.readyState == 4 && xhttp.status != 204) {
-            console.log("There was an error with the input.")
+            console.log("There was an error deleting the employee.");
+            console.log(xhttp.responseText);
         }
-    }
-    // Send the request and wait for the response
+    };
+
+    // Send the request
     xhttp.send(JSON.stringify(data));
 }
 
-function deleteRow(employeeID){
 
-    let table = document.getElementById("employees-table");
-    for (let i = 0, row; row = table.rows[i]; i++) {
-       //iterate through rows
-       //rows would be accessed using the "row" variable assigned in the for loop
-       if (table.rows[i].getAttribute("data-value") == employeeID) {
-            table.deleteRow(i);
-            break;
-       }
+// Remove the Employee's row from the HTML table
+function deleteRow(employeeID) {
+
+    let row = document.querySelector(
+        `#employees-table tbody tr[data-value="${employeeID}"]`
+    );
+
+    if (row) {
+        row.remove();
+    }
+}
+
+
+// Remove the Employee from the Update dropdown
+function deleteEmployeeFromDropdown(employeeID) {
+
+    let selectMenu =
+        document.getElementById("employee-select");
+
+    if (!selectMenu) {
+        return;
+    }
+
+    let option = selectMenu.querySelector(
+        `option[value="${employeeID}"]`
+    );
+
+    if (option) {
+        option.remove();
     }
 }

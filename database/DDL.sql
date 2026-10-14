@@ -17,6 +17,7 @@ CREATE OR REPLACE TABLE Passwords (
   PRIMARY KEY (idPassword)
 );
 
+
 -- SQL statement to create our Employees table. 
 CREATE OR REPLACE TABLE Employees (
   idEmployee INT NOT NULL AUTO_INCREMENT UNIQUE,
@@ -26,8 +27,11 @@ CREATE OR REPLACE TABLE Employees (
   email VARCHAR(145) NOT NULL,
   address VARCHAR(145) NOT NULL,
   PRIMARY KEY (idEmployee),
-  FOREIGN KEY (idPassword) REFERENCES Passwords(idPassword) ON DELETE CASCADE
+  FOREIGN KEY (idPassword)
+      REFERENCES Passwords(idPassword)
+      ON DELETE CASCADE
 );
+
 
 -- SQL statement to create our Customers table. 
 CREATE OR REPLACE TABLE Customers (
@@ -38,41 +42,71 @@ CREATE OR REPLACE TABLE Customers (
   PRIMARY KEY (idCustomer)
 );
 
+
 -- SQL statement to create our Orders table. 
 CREATE OR REPLACE TABLE Orders (
   idOrder INT NOT NULL AUTO_INCREMENT,
+
   idEmployee INT,
-  idCustomer INT NOT NULL,
-  totalPrice DECIMAL (5,2) NOT NULL,
-  minutesToProcess DECIMAL (3,1) NOT NULL,
+
+  -- idCustomer allows NULL because deleting a Customer
+  -- should NOT delete the Order. Instead, MariaDB will set
+  -- the Order's idCustomer value to NULL.
+  idCustomer INT NULL,
+
+  -- totalPrice is calculated from the Drinks belonging to the Order.
+  -- A newly-created Order begins at $0.00 because it has no Drinks yet.
+  totalPrice DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+
+  minutesToProcess DECIMAL(3,1) NOT NULL,
   orderDate DATE NOT NULL,
+
   PRIMARY KEY (idOrder),
-  FOREIGN KEY (idEmployee) REFERENCES Employees(idEmployee) ON DELETE SET NULL,
-  FOREIGN KEY (idCustomer) REFERENCES Customers(idCustomer) ON DELETE CASCADE
+
+  -- If an Employee is deleted, keep the Order
+  -- and remove only the Employee reference.
+  FOREIGN KEY (idEmployee)
+      REFERENCES Employees(idEmployee)
+      ON DELETE SET NULL,
+
+  -- If a Customer is deleted, keep the Order
+  -- and remove only the Customer reference.
+  FOREIGN KEY (idCustomer)
+      REFERENCES Customers(idCustomer)
+      ON DELETE SET NULL
 );
+
 
 -- SQL statement to create our Drinks table. 
 CREATE OR REPLACE TABLE Drinks (
   idDrink INT NOT NULL AUTO_INCREMENT,
   name VARCHAR(145) NOT NULL,
   description VARCHAR(145) NOT NULL, 
-  price DECIMAL (3,2) NOT NULL,
+  price DECIMAL(3,2) NOT NULL,
   PRIMARY KEY (idDrink)
 );
 
 -- SQL statement to create our Orders_Drinks table. 
 CREATE OR REPLACE TABLE Orders_Drinks(
+  idOrderDrink INT NOT NULL AUTO_INCREMENT,
   idOrder INT NOT NULL,
   idDrink INT NOT NULL,
   quantity INT NOT NULL,
   drinkTotal DECIMAL(5,2) NOT NULL,
-  FOREIGN KEY (idOrder) REFERENCES Orders(idOrder) ON DELETE CASCADE,
-  FOREIGN KEY (idDrink) REFERENCES Drinks(idDrink)
+
+  PRIMARY KEY (idOrderDrink),
+
+  FOREIGN KEY (idOrder)
+      REFERENCES Orders(idOrder)
+      ON DELETE CASCADE,
+
+  FOREIGN KEY (idDrink)
+      REFERENCES Drinks(idDrink)
 );
 
 
-
 -- ***INSERT DATA***
+
 
 -- (1) Passwords 
 INSERT INTO Passwords (
@@ -83,36 +117,120 @@ VALUES
     ("password123"),
     ("knockknock"),
     ("Joe_biden"),
-	("love_coffee_ll")
+    ("love_coffee_ll")
 ;
+
 
 -- (2) Employees 
 INSERT INTO Employees (
-    idEmployee, name, phoneNum, email, address, idPassword
+    idEmployee,
+    name,
+    phoneNum,
+    email,
+    address,
+    idPassword
 )
 VALUES
-    (1, "John Smith", "555-555-5555", "John@gmail.com", "440 East Knoll Dr", 1),
-    (2, "Sarah Lock", "544-444-4444", "Sarah@gmail.com", "320 Hill Dr", 2),
-    (3, "Adam Hurt", "444-333-2222", "Adam@hotmail.com", "820 Scenic Route", 3),
-    (4, "Susan Sue", "333-222-1111", "Susan@gmail.com", "562 Hill Dr", 4),
-    (5, "Larry David", "234-523-2132", "Larry@gmail.com", "295 David Blvd", 5)
+    (
+        1,
+        "John Smith",
+        "555-555-5555",
+        "John@gmail.com",
+        "440 East Knoll Dr",
+        1
+    ),
+
+    (
+        2,
+        "Sarah Lock",
+        "544-444-4444",
+        "Sarah@gmail.com",
+        "320 Hill Dr",
+        2
+    ),
+
+    (
+        3,
+        "Adam Hurt",
+        "444-333-2222",
+        "Adam@hotmail.com",
+        "820 Scenic Route",
+        3
+    ),
+
+    (
+        4,
+        "Susan Sue",
+        "333-222-1111",
+        "Susan@gmail.com",
+        "562 Hill Dr",
+        4
+    ),
+
+    (
+        5,
+        "Larry David",
+        "234-523-2132",
+        "Larry@gmail.com",
+        "295 David Blvd",
+        5
+    )
 ;
+
 
 -- (3) Customers
 INSERT INTO Customers (
-    idCustomer, name, phoneNum, email
+    idCustomer,
+    name,
+    phoneNum,
+    email
 )
 VALUES
-    (1, "Maddy Sane", "111-111-1111", "maddy@gmail.com"),
-    (2, "Hannah Shirley", "233-233-2323", "hannah@gmail.com"),
-    (3, "Donald Trump", "444-454-4545", "donald@gmail.com"),
-    (4, "David Laver", "555-454-5555", "larry@gmail.com"),
-	(5, "Bob Smith", "541-982-723", "bob@gmail.com")
+    (
+        1,
+        "Maddy Sane",
+        "111-111-1111",
+        "maddy@gmail.com"
+    ),
+
+    (
+        2,
+        "Hannah Shirley",
+        "233-233-2323",
+        "hannah@gmail.com"
+    ),
+
+    (
+        3,
+        "Donald Trump",
+        "444-454-4545",
+        "donald@gmail.com"
+    ),
+
+    (
+        4,
+        "David Laver",
+        "555-454-5555",
+        "larry@gmail.com"
+    ),
+
+    (
+        5,
+        "Bob Smith",
+        "541-982-723",
+        "bob@gmail.com"
+    )
 ;
+
 
 -- (4) Orders 
 INSERT INTO Orders (
-    idOrder, idEmployee, idCustomer, totalPrice, minutesToProcess, orderDate
+    idOrder,
+    idEmployee,
+    idCustomer,
+    totalPrice,
+    minutesToProcess,
+    orderDate
 )
 VALUES 
     (1, 1, 2, 10, 5, '2024-04-18'),
@@ -122,21 +240,58 @@ VALUES
     (5, 5, 2, 5.50, 2, '2024-04-20')
 ;
 
+
 -- (5) Drinks
 INSERT INTO Drinks (
-    idDrink, name, description, price
+    idDrink,
+    name,
+    description,
+    price
 )
 VALUES
-    (1, "Larry's Latte", "Just a typical Latte, made by Larry.", 5.00),
-    (2, "Larry's Cappuccino", "Just a typical Cappuccino, made by Larry.", 5.50),
-    (3, "Larry's Americano", "Just your typical Americano, but made by Larry.", 4.00),
-    (4, "Larry's Cold Brew", "Normal Cold Brew, but Larry made it.", 5.00),
-	(5, "Larry's Mocha", "Just a typical Mocha, made by Larry", 4.5)
+    (
+        1,
+        "Larry's Latte",
+        "Just a typical Latte, made by Larry.",
+        5.00
+    ),
+
+    (
+        2,
+        "Larry's Cappuccino",
+        "Just a typical Cappuccino, made by Larry.",
+        5.50
+    ),
+
+    (
+        3,
+        "Larry's Americano",
+        "Just your typical Americano, but made by Larry.",
+        4.00
+    ),
+
+    (
+        4,
+        "Larry's Cold Brew",
+        "Normal Cold Brew, but Larry made it.",
+        5.00
+    ),
+
+    (
+        5,
+        "Larry's Mocha",
+        "Just a typical Mocha, made by Larry",
+        4.5
+    )
 ;
+
 
 -- (6) Orders_Drinks 
 INSERT INTO Orders_Drinks (
-    idOrder, idDrink, quantity, drinkTotal
+    idOrder,
+    idDrink,
+    quantity,
+    drinkTotal
 )
 VALUES 
     (1, 1, 1, 5.00),

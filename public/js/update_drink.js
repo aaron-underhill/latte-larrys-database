@@ -1,79 +1,133 @@
 // Code adapted from nodejs-start-app from course github to fit our database
 
 // Get the objects we need to modify
-let updateDrinkForm = document.getElementById('update-drink-form-ajax');
+let updateDrinkForm =
+    document.getElementById('update-drink-form-ajax');
 
 // Modify the objects we need
 updateDrinkForm.addEventListener("submit", function (e) {
-   
-    // Prevent the form from submitting
+
+    // Prevent normal form submission
     e.preventDefault();
 
-    // Get form fields we need to get data from
-    let inputID = document.getElementById("mySelect");
-    let inputNameChange = document.getElementById("input-name-update");
-    let inputDescription = document.getElementById("input-description-update");
-    let inputPrice = document.getElementById("input-price-update");
+    // Get form fields
+    let inputID =
+        document.getElementById("drink-select");
 
-    // Get the values from the form fields
+    let inputName =
+        document.getElementById("input-name-update");
+
+    let inputDescription =
+        document.getElementById("input-description-update");
+
+    let inputPrice =
+        document.getElementById("input-price-update");
+
+    // Get their current values
     let idValue = inputID.value;
-    let nameValue = inputNameChange.value;
+    let nameValue = inputName.value;
     let descriptionValue = inputDescription.value;
     let priceValue = inputPrice.value;
-    
-    // currently the database table for bsg_people does not allow updating values to NULL
-    // so we must abort if being bassed NULL for homeworld
 
-    // Put our data we want to send in a javascript object
+    // Build the object we want to send
     let data = {
         id: idValue,
         name: nameValue,
         description: descriptionValue,
-        price: priceValue,
-    }
-    
+        price: priceValue
+    };
+
     // Setup our AJAX request
-    var xhttp = new XMLHttpRequest();
+    let xhttp = new XMLHttpRequest();
+
     xhttp.open("PUT", "/put-drink-ajax", true);
-    xhttp.setRequestHeader("Content-type", "application/json");
+
+    xhttp.setRequestHeader(
+        "Content-type",
+        "application/json"
+    );
 
     // Tell our AJAX request how to resolve
     xhttp.onreadystatechange = () => {
+
         if (xhttp.readyState == 4 && xhttp.status == 200) {
 
-            // Add the new data to the table
-            updateRow(xhttp.response, nameValue);
+            // Parse the actual updated Drink
+            // returned from MariaDB
+            let updatedDrink =
+                JSON.parse(xhttp.responseText);
 
+            // Update the HTML table
+            updateRow(updatedDrink);
+
+            // Update the Drink's name in the dropdown
+            updateDrinkDropdown(updatedDrink);
+
+            // Clear the update fields
+            inputName.value = '';
+            inputDescription.value = '';
+            inputPrice.value = '';
         }
+
         else if (xhttp.readyState == 4 && xhttp.status != 200) {
-            console.log("There was an error with the input.")
+            console.log("There was an error updating the drink.");
+            console.log(xhttp.responseText);
         }
+    };
+
+    // Send the request
+    xhttp.send(JSON.stringify(data));
+});
+
+
+// Update the Drink's existing HTML table row
+function updateRow(updatedDrink) {
+
+    // Find the row belonging to this Drink
+    let row = document.querySelector(
+        `#drinks-table tbody tr[data-value="${updatedDrink.idDrink}"]`
+    );
+
+    if (!row) {
+        return;
     }
 
-    // Send the request and wait for the response
-    xhttp.send(JSON.stringify(data));
+    // Get the <td> cells belonging to this row
+    let cells = row.getElementsByTagName("td");
 
-})
+    /*
+        Drink table layout:
+
+        cells[0] = idDrink
+        cells[1] = name
+        cells[2] = description
+        cells[3] = price
+        cells[4] = Delete button
+    */
+
+    cells[0].innerText = updatedDrink.idDrink;
+    cells[1].innerText = updatedDrink.name;
+    cells[2].innerText = updatedDrink.description;
+    cells[3].innerText = updatedDrink.price;
+}
 
 
-function updateRow(data, drinkID){
-    let parsedData = JSON.parse(data);
-    
-    let table = document.getElementById("drinks-table");
+// Update the Drink's displayed name in the Update dropdown
+function updateDrinkDropdown(updatedDrink) {
 
-    for (let i = 0, row; row = table.rows[i]; i++) {
-       //iterate through rows
-       //rows would be accessed using the "row" variable assigned in the for loop
-       if (table.rows[i].getAttribute("data-value") == drinkID) {
+    let selectMenu =
+        document.getElementById("drink-select");
 
-            // Get the location of the row where we found the matching person ID
-            let updateRowIndex = table.getElementsByTagName("tr")[i];
+    if (!selectMenu) {
+        return;
+    }
 
-            // Get td of homeworld value
-            let td = updateRowIndex.getElementsByTagName("td")[3];
+    let option = selectMenu.querySelector(
+        `option[value="${updatedDrink.idDrink}"]`
+    );
 
-            // Reassign homeworld to our value we updated to
-            td.innerHTML = parsedData[0].name; 
-       }
+    if (option) {
+        option.text =
+            `${updatedDrink.name} (ID ${updatedDrink.idDrink})`;
     }
 }

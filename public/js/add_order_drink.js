@@ -1,126 +1,197 @@
 // Code adapted from nodejs-start-app from course github to fit our database
 
-// Get the objects we need to modify
-let addOrderForm = document.getElementById('add-order-form-ajax');
+// Get the form we need to modify
+let addOrderDrinkForm =
+    document.getElementById('add-order_drink-form-ajax');
 
-// Modify the objects we need
-addOrderForm.addEventListener("submit", function (e) {
-    
-    // Prevent the form from submitting
-    e.preventDefault();
 
-    // Get form fields we need to get data from
-    let inputEmployee = document.getElementById("input-employee");
-    let inputCustomer = document.getElementById("input-customer");
-    let inputMinutes = document.getElementById("input-minutesToProcess");
-    let inputDate = document.getElementById("input-date");
+// Handle form submission
+addOrderDrinkForm.addEventListener(
+    "submit",
+    function (e) {
 
-    // Get the values from the form fields
-    let employeeValue = inputEmployee.value;
-    let customerValue = inputCustomer.value;
-    let minutesValue = inputMinutes.value;
-    let dateValue = inputDate.value;
+        // Prevent normal form submission
+        e.preventDefault();
 
-    // Put our data we want to send in a javascript object
-    let data = {
-        employee: employeeValue,
-        customer: customerValue,
-        minutes: minutesValue,
-        date: dateValue
+        // Get form fields
+        let inputOrder =
+            document.getElementById("input-order");
+
+        let inputDrink =
+            document.getElementById("input-drink");
+
+        let inputQuantity =
+            document.getElementById("input-quantity");
+
+        // Get their current values
+        let orderValue =
+            inputOrder.value;
+
+        let drinkValue =
+            inputDrink.value;
+
+        let quantityValue =
+            inputQuantity.value;
+
+        // Build the object to send
+        let data = {
+            idOrder: orderValue,
+            idDrink: drinkValue,
+            quantity: quantityValue
+        };
+
+        // Setup AJAX request
+        let xhttp =
+            new XMLHttpRequest();
+
+        xhttp.open(
+            "POST",
+            "/add-order_drink-ajax",
+            true
+        );
+
+        xhttp.setRequestHeader(
+            "Content-type",
+            "application/json"
+        );
+
+        // Handle response
+        xhttp.onreadystatechange = () => {
+
+            if (
+                xhttp.readyState == 4 &&
+                xhttp.status == 201
+            ) {
+
+                let newOrderDrink =
+                    JSON.parse(xhttp.responseText);
+
+                // Add the returned line item
+                // to the current HTML table.
+                addRowToTable(newOrderDrink);
+
+                // Reset the form
+                inputOrder.value = '';
+                inputDrink.value = '';
+                inputQuantity.value = '';
+            }
+
+            else if (
+                xhttp.readyState == 4 &&
+                xhttp.status != 201
+            ) {
+
+                console.log(
+                    "There was an error adding the Drink to the Order."
+                );
+
+                console.log(xhttp.responseText);
+            }
+        };
+
+        // Send the request
+        xhttp.send(JSON.stringify(data));
     }
+);
 
-    console.log("hi");
-    
-    // Setup our AJAX request
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("POST", "/add-order-ajax", true);
-    xhttp.setRequestHeader("Content-type", "application/json");
 
-    // Tell our AJAX request how to resolve
-    xhttp.onreadystatechange = () => {
-        if (xhttp.readyState == 4 && xhttp.status == 200) {
+// Add one Order-Drink relationship to the HTML table
+function addRowToTable(newOrderDrink) {
 
-            // Add the new data to the table
-            addRowToTable(xhttp.response);
+    let tableBody =
+        document.querySelector(
+            "#orders_drinks-table tbody"
+        );
 
-            // Clear the input fields for another transaction
-            inputEmployee.value = '';
-            inputCustomer.value = '';
-            inputMinutes.value = '';
-            inputDate.value = '';
-        }
-        else if (xhttp.readyState == 4 && xhttp.status != 200) {
-            console.log("There was an error with the input.")
-        }
-    }
+    // Create row
+    let row =
+        document.createElement("TR");
 
-    // Send the request and wait for the response
-    xhttp.send(JSON.stringify(data));
+    // Create cells
+    let idOrderDrinkCell =
+        document.createElement("TD");
 
-})
+    let idOrderCell =
+        document.createElement("TD");
 
-/*
-// Creates a single row from an Object representing a single record from 
-// bsg_people
-addRowToTable = (data) => {
+    let idDrinkCell =
+        document.createElement("TD");
 
-    // Get a reference to the current table on the page and clear it out.
-    let currentTable = document.getElementById("orders-table");
+    let quantityCell =
+        document.createElement("TD");
 
-    // Get the location where we should insert the new row (end of table)
-    let newRowIndex = currentTable.rows.length;
+    let drinkTotalCell =
+        document.createElement("TD");
 
-    // Get a reference to the new row from the database query (last object)
-    let parsedData = JSON.parse(data);
-    let newRow = parsedData[parsedData.length - 1]
+    let deleteCell =
+        document.createElement("TD");
 
-    // Create a row and 4 cells
-    let row = document.createElement("TR");
-    let idOrderCell = document.createElement("TD");
-    let idEmployeeCell = document.createElement("TD");
-    let idCustomerCell = document.createElement("TD");
-    let totalPriceCell = document.createElement("TD");
-    let minutesCell = document.createElement("TD");
+    // Create Delete button
+    let deleteButton =
+        document.createElement("button");
 
-    let deleteCell = document.createElement("TD");
+    // Fill the cells
+    idOrderDrinkCell.innerText =
+        newOrderDrink.idOrderDrink;
 
-    // Fill the cells with correct data
-    idOrderCell.innerText = newRow.idOrder;
-    idEmployeeCell.innerText = newRow.employee;
-    idCustomerCell.innerText = newRow.customer;
-    totalPriceCell.innerText = 0;
-    minutesCell.innerText = newRow.minutes;
-    
-    deleteCell = document.createElement("button");
-    deleteCell.innerHTML = "Delete";
-    deleteCell.onclick = function(){
-        deletePerson(newRow.idDrink);
+    idOrderCell.innerText =
+        newOrderDrink.idOrder;
+
+    idDrinkCell.innerText =
+        `${newOrderDrink.idDrink} - ${newOrderDrink.drinkName}`;
+
+    quantityCell.innerText =
+        newOrderDrink.quantity;
+
+    drinkTotalCell.innerText =
+        newOrderDrink.drinkTotal;
+
+    // Configure Delete button
+    deleteButton.innerText = "Delete";
+
+    deleteButton.onclick = function () {
+
+        deleteOrderDrink(
+            newOrderDrink.idOrderDrink
+        );
     };
 
+    deleteCell.appendChild(deleteButton);
 
-
-    // Add the cells to the row 
+    // Add cells to row
+    row.appendChild(idOrderDrinkCell);
     row.appendChild(idOrderCell);
-    row.appendChild(idEmployeeCell);
-    row.appendChild(idCustomerCell);
-    row.appendChild(totalPriceCell);
-    row.appendChild(minutesCell);
+    row.appendChild(idDrinkCell);
+    row.appendChild(quantityCell);
+    row.appendChild(drinkTotalCell);
     row.appendChild(deleteCell);
-    
-    // Add a custom row attribute so the deleteRow function can find a newly added row
-    row.setAttribute('data-value', newRow.id);
 
-    // Add the row to the table
-    currentTable.appendChild(row);
+    // Store idOrderDrink on the row
+    row.setAttribute(
+        "data-value",
+        newOrderDrink.idOrderDrink
+    );
 
-    // Start of new Step 8 code for adding new data to the dropdown menu for updating people
-    
-    // Find drop down menu, create a new option, fill data in the option (full name, id),
-    // then append option to drop down menu so newly created rows via ajax will be found in it without needing a refresh
-    let selectMenu = document.getElementById("mySelect");
-    let option = document.createElement("option");
-    option.text = newRow.fname + ' ' +  newRow.lname;
-    option.value = newRow.id;
-    selectMenu.add(option);
-    // End of new step 8 code.
-} */
+    // Add row to table
+    tableBody.appendChild(row);
+
+    // Add it to the Update dropdown
+    let selectMenu =
+        document.getElementById(
+            "order-drink-select"
+        );
+
+    if (selectMenu) {
+
+        let option =
+            document.createElement("option");
+
+        option.text =
+            `Order ${newOrderDrink.idOrder}: ${newOrderDrink.drinkName} (Line ${newOrderDrink.idOrderDrink})`;
+
+        option.value =
+            newOrderDrink.idOrderDrink;
+
+        selectMenu.add(option);
+    }
+}
