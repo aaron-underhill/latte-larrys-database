@@ -1,17 +1,119 @@
 <!-- Code adapted from nodejs-start-app from course github to fit our database -->
-<!-- main.hbs-->
 
-
+<!-- main.hbs -->
 
 <!DOCTYPE html>
-<html>
+
+<html lang="en">
+
 <head>
-    <meta charset="utf-8">
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>
+        {{#if pageTitle}}
+        {{pageTitle}} | Unreal Coffee
+        {{else}}
+        Unreal Coffee
+        {{/if}}
+    </title>
+
     <link rel="stylesheet" href="/css/style.css">
+
 </head>
+
+
 <body>
 
-    {{{body}}}
+
+    {{!--
+    Shared site header.
+
+    This appears on every page rendered through this layout,
+    so we only need to write the navigation once.
+    --}}
+    <header class="site-header">
+
+        <div class="nav-container">
+
+
+            <a class="site-brand" href="/">
+                Unreal Coffee
+            </a>
+
+
+            <nav class="site-nav" aria-label="Main navigation">
+
+                <a href="/">
+                    Home
+                </a>
+
+                <a href="/employees">
+                    Employees
+                </a>
+
+                <a href="/customers">
+                    Customers
+                </a>
+
+                <a href="/orders">
+                    Orders
+                </a>
+
+                <a href="/drinks">
+                    Drinks
+                </a>
+
+                <a href="/orders_drinks">
+                    Order Items
+                </a>
+
+            </nav>
+
+
+        </div>
+
+    </header>
+
+
+
+    {{!--
+    Each individual .hbs page gets inserted here.
+
+    For example:
+
+    res.render('orders', ...)
+
+    causes the contents of orders.hbs to replace {{{body}}}.
+    --}}
+    <main class="page-container">
+
+        {{{body}}}
+
+    </main>
+
+
+
+    {{!-- Shared footer --}}
+    <footer class="site-footer">
+
+        <div class="footer-container">
+
+            <p>
+                <strong>Unreal Coffee</strong>
+            </p>
+
+            <p>
+                Coffee Shop Management System
+            </p>
+
+        </div>
+
+    </footer>
+
 
 </body>
+
 </html>

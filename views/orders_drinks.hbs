@@ -1,248 +1,399 @@
 <!-- Code adapted from nodejs-start-app from course github to fit our database -->
 
 <!-- orders_drinks.hbs -->
-<title>Orders_Drinks</title>
 
-<h1>Orders_Drinks</h1>
 
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+{{!-- ----------------------------------------------------
+PAGE HEADER
+----------------------------------------------------- --}}
 
-[
-<a href="/">Home</a> |
-<a href="/employees">Employees</a> |
-<a href="/customers">Customers</a> |
-<a href="/orders">Orders</a> |
-<a href="/drinks">Drinks</a> |
-<a href="/orders_drinks">Orders_Drinks</a>
-]
+<section class="page-header">
 
+    <p class="eyebrow">
+        Database Management
+    </p>
 
-{{!--
-Orders_Drinks is our intersection/junction table.
+    <h1>
+        Order Items
+    </h1>
 
-Each row represents one Drink belonging to one Order.
-quantity tells us how many of that Drink were ordered.
-drinkTotal is calculated automatically from:
-Drink price * quantity
---}}
+    <p class="page-description">
+        Manage the drinks and quantities associated with
+        individual Unreal Coffee orders.
+    </p>
 
+</section>
 
-{{!-- Create a table --}}
-<table id="orders_drinks-table">
 
-    {{!-- Header section --}}
-    <thead>
 
-        <tr>
-            <th>idOrderDrink</th>
-            <th>idOrder</th>
-            <th>idDrink</th>
-            <th>quantity</th>
-            <th>drinkTotal</th>
-            <th>delete</th>
-        </tr>
+{{!-- ----------------------------------------------------
+ORDER ITEMS TABLE
+----------------------------------------------------- --}}
 
-    </thead>
+<section class="data-section">
 
+    <div class="section-heading">
 
-    {{!-- Body section --}}
-    <tbody>
+        <div>
 
-        {{#each orderDrinkData}}
+            <p class="eyebrow">
+                Records
+            </p>
 
-        <tr data-value="{{this.idOrderDrink}}">
+            <h2>
+                Order Item Directory
+            </h2>
 
-            <td>{{this.idOrderDrink}}</td>
+            <p>
+                Each record represents a drink belonging
+                to a specific order.
+            </p>
 
-            <td>{{this.idOrder}}</td>
+            <p class="section-note">
+                Line totals are calculated automatically
+                from the selected drink price and quantity.
+            </p>
 
-            <td>
-                {{this.idDrink}} - {{this.drinkName}}
-            </td>
+        </div>
 
-            <td>{{this.quantity}}</td>
+    </div>
 
-            <td>{{this.drinkTotal}}</td>
 
-            <td>
-                <button onclick="deleteOrderDrink({{this.idOrderDrink}})">
-                    Delete
-                </button>
-            </td>
+    <div class="table-container">
 
-        </tr>
+        <table id="orders_drinks-table">
 
-        {{/each}}
+            <thead>
 
-    </tbody>
+                <tr>
 
-</table>
+                    <th>
+                        Item ID
+                    </th>
 
+                    <th>
+                        Order ID
+                    </th>
 
-{{!-- Embed JavaScript for deleting Order-Drink relationships --}}
-<script src="./js/delete_order_drink.js"></script>
+                    <th>
+                        Drink
+                    </th>
 
+                    <th>
+                        Quantity
+                    </th>
 
+                    <th>
+                        Line Total
+                    </th>
 
-{{!-- Form to add a Drink to an Order --}}
-<h2>Add a Drink to an Order</h2>
+                    <th>
+                        Action
+                    </th>
 
-<p>
-    Select an Order, select a Drink, and enter the quantity.
-    The Drink total and the Order's total price will be
-    calculated automatically.
-</p>
+                </tr>
 
+            </thead>
 
-<form id="add-order_drink-form-ajax">
 
+            <tbody>
 
-    <label for="input-order">
-        Order:
-    </label>
+                {{#each orderDrinkData}}
 
-    <select name="input-order" id="input-order" required>
+                <tr data-value="{{this.idOrderDrink}}">
 
-        <option value="">
-            Select an Order
-        </option>
+                    <td>
+                        {{this.idOrderDrink}}
+                    </td>
 
-        {{#each orderData}}
+                    <td>
+                        {{this.idOrder}}
+                    </td>
 
-        <option value="{{this.idOrder}}">
-            Order {{this.idOrder}}
-        </option>
+                    <td>
+                        {{this.idDrink}} - {{this.drinkName}}
+                    </td>
 
-        {{/each}}
+                    <td>
+                        {{this.quantity}}
+                    </td>
 
-    </select>
+                    <td>
+                        ${{this.drinkTotal}}
+                    </td>
 
+                    <td>
 
-    <label for="input-drink">
-        Drink:
-    </label>
+                        <button class="button button-danger" type="button"
+                            onclick="deleteOrderDrink({{this.idOrderDrink}})">
+                            Delete
+                        </button>
 
-    <select name="input-drink" id="input-drink" required>
+                    </td>
 
-        <option value="">
-            Select a Drink
-        </option>
+                </tr>
 
-        {{#each drinkData}}
+                {{/each}}
 
-        <option value="{{this.idDrink}}">
-            {{this.name}} - ${{this.price}} (ID {{this.idDrink}})
-        </option>
+            </tbody>
 
-        {{/each}}
+        </table>
 
-    </select>
+    </div>
 
+</section>
 
-    <label for="input-quantity">
-        Quantity:
-    </label>
 
-    <input type="number" name="input-quantity" id="input-quantity" min="1" step="1" required>
 
+{{!-- ----------------------------------------------------
+CREATE ORDER ITEM
+----------------------------------------------------- --}}
 
-    <input type="submit">
+<section class="form-section">
 
-</form>
+    <div class="section-heading">
 
+        <div>
 
-{{!-- Embed JavaScript to handle Create --}}
-<script src="./js/add_order_drink.js"></script>
+            <p class="eyebrow">
+                Create
+            </p>
 
+            <h2>
+                Add an Order Item
+            </h2>
 
+            <p>
+                Add a drink to an existing order and
+                specify how many were ordered.
+            </p>
 
-<h2>Updating an Order-Drink</h2>
+            <p class="section-note">
+                The line total and the parent order's total
+                price are calculated automatically.
+            </p>
 
-<p>
-    Select an Order-Drink relationship and change its Order,
-    Drink, or quantity. Pricing will be recalculated automatically.
-</p>
+        </div>
 
+    </div>
 
-<form id="update-order_drink-form-ajax">
 
+    <form id="add-order_drink-form-ajax" class="data-form">
 
-    <label for="order-drink-select">
-        Order-Drink:
-    </label>
+        <div class="form-group">
 
-    <select name="order-drink-select" id="order-drink-select" required>
+            <label for="input-order">
+                Order
+            </label>
 
-        <option value="">
-            Select an Order-Drink
-        </option>
+            <select name="input-order" id="input-order" required>
 
-        {{#each orderDrinkData}}
+                <option value="">
+                    Select an Order
+                </option>
 
-        <option value="{{this.idOrderDrink}}">
-            Order {{this.idOrder}}:
-            {{this.drinkName}}
-            (Line {{this.idOrderDrink}})
-        </option>
+                {{#each orderData}}
 
-        {{/each}}
+                <option value="{{this.idOrder}}">
+                    Order {{this.idOrder}}
+                </option>
 
-    </select>
+                {{/each}}
 
+            </select>
 
-    <label for="update-order">
-        Order:
-    </label>
+        </div>
 
-    <select name="update-order" id="update-order" required>
 
-        <option value="">
-            Select an Order
-        </option>
+        <div class="form-group">
 
-        {{#each orderData}}
+            <label for="input-drink">
+                Drink
+            </label>
 
-        <option value="{{this.idOrder}}">
-            Order {{this.idOrder}}
-        </option>
+            <select name="input-drink" id="input-drink" required>
 
-        {{/each}}
+                <option value="">
+                    Select a Drink
+                </option>
 
-    </select>
+                {{#each drinkData}}
 
+                <option value="{{this.idDrink}}">
+                    {{this.name}} - ${{this.price}} (ID {{this.idDrink}})
+                </option>
 
-    <label for="update-drink">
-        Drink:
-    </label>
+                {{/each}}
 
-    <select name="update-drink" id="update-drink" required>
+            </select>
 
-        <option value="">
-            Select a Drink
-        </option>
+        </div>
 
-        {{#each drinkData}}
 
-        <option value="{{this.idDrink}}">
-            {{this.name}} - ${{this.price}} (ID {{this.idDrink}})
-        </option>
+        <div class="form-group">
 
-        {{/each}}
+            <label for="input-quantity">
+                Quantity
+            </label>
 
-    </select>
+            <input type="number" name="input-quantity" id="input-quantity" min="1" step="1" required>
 
+        </div>
 
-    <label for="update-quantity">
-        Quantity:
-    </label>
 
-    <input type="number" name="update-quantity" id="update-quantity" min="1" step="1" required>
+        <div class="form-actions">
 
+            <input class="button button-primary" type="submit" value="Add Order Item">
 
-    <input type="submit">
+        </div>
 
-</form>
+    </form>
 
+</section>
 
-{{!-- Embed JavaScript to handle Update --}}
-<script src="./js/update_order_drink.js"></script>
+
+
+{{!-- ----------------------------------------------------
+UPDATE ORDER ITEM
+----------------------------------------------------- --}}
+
+<section class="form-section">
+
+    <div class="section-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                Update
+            </p>
+
+            <h2>
+                Update an Order Item
+            </h2>
+
+            <p>
+                Select an existing order item and change
+                its order, drink, or quantity.
+            </p>
+
+            <p class="section-note">
+                Pricing is recalculated automatically
+                after the item is updated.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <form id="update-order_drink-form-ajax" class="data-form">
+
+        <div class="form-group">
+
+            <label for="order-drink-select">
+                Order Item
+            </label>
+
+            <select name="order-drink-select" id="order-drink-select" required>
+
+                <option value="">
+                    Select an Order Item
+                </option>
+
+                {{#each orderDrinkData}}
+
+                <option value="{{this.idOrderDrink}}">
+                    Order {{this.idOrder}}:
+                    {{this.drinkName}}
+                    (Item {{this.idOrderDrink}})
+                </option>
+
+                {{/each}}
+
+            </select>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="update-order">
+                Order
+            </label>
+
+            <select name="update-order" id="update-order" required>
+
+                <option value="">
+                    Select an Order
+                </option>
+
+                {{#each orderData}}
+
+                <option value="{{this.idOrder}}">
+                    Order {{this.idOrder}}
+                </option>
+
+                {{/each}}
+
+            </select>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="update-drink">
+                Drink
+            </label>
+
+            <select name="update-drink" id="update-drink" required>
+
+                <option value="">
+                    Select a Drink
+                </option>
+
+                {{#each drinkData}}
+
+                <option value="{{this.idDrink}}">
+                    {{this.name}} - ${{this.price}} (ID {{this.idDrink}})
+                </option>
+
+                {{/each}}
+
+            </select>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="update-quantity">
+                Quantity
+            </label>
+
+            <input type="number" name="update-quantity" id="update-quantity" min="1" step="1" required>
+
+        </div>
+
+
+        <div class="form-actions">
+
+            <input class="button button-primary" type="submit" value="Update Order Item">
+
+        </div>
+
+    </form>
+
+</section>
+
+
+
+{{!-- ----------------------------------------------------
+PAGE-SPECIFIC JAVASCRIPT
+----------------------------------------------------- --}}
+
+<script src="/js/delete_order_drink.js"></script>
+
+<script src="/js/add_order_drink.js"></script>
+
+<script src="/js/update_order_drink.js"></script>

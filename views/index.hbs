@@ -1,26 +1,255 @@
-<html>
-<head>
-<title>Latte Larry's</title>
-<link href="style.css" rel="stylesheet" type="text/css" />
+<!-- Code adapted from nodejs-start-app from course github to fit our database -->
 
-</head>
-
-<body>
-<h1>Welcome to Latte Larry's</h1>
-
-[ <a href="/">Home</a> | <a href="/employees">Employees</a> 
-| <a href="/customers">Customers</a> 
-| <a href="/orders">Orders</a> | <a href="/drinks">Drinks</a>
-| <a href="/orders_drinks">Orders_Drinks</a>  ]
+<!-- index.hbs -->
 
 
- <p id = "index">Welcome to Latte Larry's! Here, you can sort through our database for our store and find information regarding our store statistics, including details over: Employees, Customers, Orders, Drinks, and Order-Drinks.</p>
+{{!-- ----------------------------------------------------
+HERO
+----------------------------------------------------- --}}
 
- <p > <strong>Take a look at our store and our beloved founder, Larry! </strong></p>
- <div class = "images">
-    <img class = "images" src="images/outside_store.jpeg" alt="Image of Latte Larry store from the outside.">
-    <img class = "images" src="images/inside_store.png" alt="Image of Latte Larry store from the inside.">
-    <img class = "images" src="images/self_heating.jpeg" alt="Image of Latte Larry's famous self-heating cups.">
-</div>
-</body>
-</html>
+<section class="hero">
+
+
+    <div class="hero-content">
+
+        <p class="eyebrow">
+            Coffee Shop Management System
+        </p>
+
+
+        <h1 class="hero-title">
+            Unreal Coffee
+        </h1>
+
+
+        <p class="hero-description">
+
+            A relational database application for managing
+            the day-to-day operations of a fictional
+            neighborhood coffee shop.
+
+        </p>
+
+
+        <div class="hero-actions">
+
+            <a class="button button-primary" href="/orders">
+                View Orders
+            </a>
+
+
+            <a class="button button-secondary" href="/drinks">
+                View Drinks
+            </a>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="hero-visual">
+
+        <img class="hero-image" src="/images/unreal-coffee-hero.png"
+            alt="Unreal Coffee, a warm brick neighborhood coffee shop on a tree-lined city corner">
+
+    </div>
+
+
+</section>
+
+
+
+{{!-- ----------------------------------------------------
+ABOUT
+----------------------------------------------------- --}}
+
+<section class="about-section">
+
+
+    <div class="section-heading">
+
+        <p class="eyebrow">
+            About the Project
+        </p>
+
+
+        <h2>
+            A relational database built around
+            a fictional neighborhood café.
+        </h2>
+
+    </div>
+
+
+    <div class="about-content">
+
+        <p>
+
+            Unreal Coffee is a full-stack relational
+            database application built with Node.js,
+            Express, MariaDB, Handlebars, HTML,
+            CSS, and JavaScript.
+
+        </p>
+
+
+        <p>
+
+            The application supports CRUD operations
+            across interconnected restaurant data,
+            including employees, customers, orders,
+            drinks, and individual order items.
+
+        </p>
+
+    </div>
+
+
+</section>
+
+
+
+{{!-- ----------------------------------------------------
+DATABASE MANAGEMENT
+----------------------------------------------------- --}}
+
+<section class="management-section">
+
+
+    <div class="section-heading">
+
+        <p class="eyebrow">
+            Database
+        </p>
+
+
+        <h2>
+            Database Management
+        </h2>
+
+
+        <p>
+
+            Explore and manage the records that make up
+            Unreal Coffee's fictional operations.
+
+        </p>
+
+    </div>
+
+
+
+    <div class="management-grid">
+
+
+        {{!-- Employees --}}
+        <a class="management-card" href="/employees">
+
+            <h3>
+                Employees
+            </h3>
+
+
+            <p>
+                Manage employee records and contact information.
+            </p>
+
+
+            <span class="card-link">
+                View Employees →
+            </span>
+
+        </a>
+
+
+
+        {{!-- Customers --}}
+        <a class="management-card" href="/customers">
+
+            <h3>
+                Customers
+            </h3>
+
+
+            <p>
+                Manage customer records and contact information.
+            </p>
+
+
+            <span class="card-link">
+                View Customers →
+            </span>
+
+        </a>
+
+
+
+        {{!-- Orders --}}
+        <a class="management-card" href="/orders">
+
+            <h3>
+                Orders
+            </h3>
+
+
+            <p>
+                Create and manage customer orders.
+            </p>
+
+
+            <span class="card-link">
+                View Orders →
+            </span>
+
+        </a>
+
+
+
+        {{!-- Drinks --}}
+        <a class="management-card" href="/drinks">
+
+            <h3>
+                Drinks
+            </h3>
+
+
+            <p>
+                Manage the drinks available on the
+                Unreal Coffee menu.
+            </p>
+
+
+            <span class="card-link">
+                View Drinks →
+            </span>
+
+        </a>
+
+
+
+        {{!-- Order Items --}}
+        <a class="management-card" href="/orders_drinks">
+
+            <h3>
+                Order Items
+            </h3>
+
+
+            <p>
+                Manage the drinks and quantities
+                associated with individual orders.
+            </p>
+
+
+            <span class="card-link">
+                View Order Items →
+            </span>
+
+        </a>
+
+
+    </div>
+
+
+</section>

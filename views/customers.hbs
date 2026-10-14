@@ -1,169 +1,318 @@
 <!-- Code adapted from nodejs-start-app from course github to fit our database -->
 
 <!-- customers.hbs -->
-<title>Customers</title>
 
-<h1>Customers</h1>
 
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+{{!-- ----------------------------------------------------
+PAGE HEADER
+----------------------------------------------------- --}}
 
-[
-<a href="/">Home</a> |
-<a href="/employees">Employees</a> |
-<a href="/customers">Customers</a> |
-<a href="/orders">Orders</a> |
-<a href="/drinks">Drinks</a> |
-<a href="/orders_drinks">Orders_Drinks</a>
-]
+<section class="page-header">
 
+    <p class="eyebrow">
+        Database Management
+    </p>
 
-{{!-- Create a table --}}
-<table id="customers-table">
+    <h1>
+        Customers
+    </h1>
 
-    {{!-- Header section --}}
-    <thead>
-        <tr>
-            <th>idCustomer</th>
-            <th>name</th>
-            <th>phoneNum</th>
-            <th>email</th>
-            <th>delete</th>
-        </tr>
-    </thead>
+    <p class="page-description">
+        View, create, update, and remove customer records
+        stored in the Unreal Coffee database.
+    </p>
 
+</section>
 
-    {{!-- Body section --}}
-    <tbody>
 
-        {{#each data}}
 
-        <tr data-value="{{this.idCustomer}}">
+{{!-- ----------------------------------------------------
+CUSTOMER TABLE
+----------------------------------------------------- --}}
 
-            <td>{{this.idCustomer}}</td>
+<section class="data-section">
 
-            <td>{{this.name}}</td>
+    <div class="section-heading">
 
-            <td>{{this.phoneNum}}</td>
+        <div>
 
-            <td>{{this.email}}</td>
+            <p class="eyebrow">
+                Records
+            </p>
 
-            <td>
-                <button onclick="deleteCustomer({{this.idCustomer}})">
-                    Delete
-                </button>
-            </td>
+            <h2>
+                Customer Directory
+            </h2>
 
-        </tr>
+            <p>
+                These are the customers currently stored
+                in the database.
+            </p>
 
-        {{/each}}
+        </div>
 
-    </tbody>
+    </div>
 
-</table>
 
+    <div class="table-container">
 
-{{!-- Embed our JavaScript for deleting Customers --}}
-<script src="./js/delete_customer.js"></script>
+        <table id="customers-table">
 
+            <thead>
 
+                <tr>
 
-{{!-- Form to add a record to the table --}}
-<h2>Add a New Customer</h2>
+                    <th>
+                        Customer ID
+                    </th>
 
-<p>
-    To add a new customer, please enter their information
-    below and click 'Submit'!
-</p>
+                    <th>
+                        Name
+                    </th>
 
-<form id="add-customer-form-ajax">
+                    <th>
+                        Phone Number
+                    </th>
 
-    <label for="input-name">
-        Name:
-    </label>
+                    <th>
+                        Email
+                    </th>
 
-    <input type="text" name="input-name" id="input-name" required>
+                    <th>
+                        Action
+                    </th>
 
+                </tr>
 
-    <label for="input-phoneNum">
-        Phone Number:
-    </label>
+            </thead>
 
-    <input type="text" name="input-phoneNum" id="input-phoneNum">
 
+            <tbody>
 
-    <label for="input-email">
-        Email:
-    </label>
+                {{#each data}}
 
-    <input type="email" name="input-email" id="input-email">
+                <tr data-value="{{this.idCustomer}}">
 
+                    <td>
+                        {{this.idCustomer}}
+                    </td>
 
-    <input type="submit">
+                    <td>
+                        {{this.name}}
+                    </td>
 
-</form>
+                    <td>
+                        {{this.phoneNum}}
+                    </td>
 
+                    <td>
+                        {{this.email}}
+                    </td>
 
-{{!-- Embed our JavaScript to handle Create --}}
-<script src="./js/add_customer.js"></script>
+                    <td>
 
+                        <button class="button button-danger" type="button"
+                            onclick="deleteCustomer({{this.idCustomer}})">
+                            Delete
+                        </button>
 
+                    </td>
 
-<h2>Updating a Customer's Info</h2>
+                </tr>
 
-<p>
-    To update a specific customer's information,
-    select the customer and enter their updated information below.
-</p>
+                {{/each}}
 
-<form id="update-customer-form-ajax">
+            </tbody>
 
+        </table>
 
-    <label for="customer-select">
-        Customer:
-    </label>
+    </div>
 
-    <select name="customer-select" id="customer-select" required>
+</section>
 
-        <option value="">
-            Select a Customer
-        </option>
 
-        {{#each data}}
 
-        <option value="{{this.idCustomer}}">
-            {{this.name}} (ID {{this.idCustomer}})
-        </option>
+{{!-- ----------------------------------------------------
+CREATE CUSTOMER
+----------------------------------------------------- --}}
 
-        {{/each}}
+<section class="form-section">
 
-    </select>
+    <div class="section-heading">
 
+        <div>
 
-    <label for="input-name-update">
-        Name:
-    </label>
+            <p class="eyebrow">
+                Create
+            </p>
 
-    <input type="text" name="input-name-update" id="input-name-update" required>
+            <h2>
+                Add a Customer
+            </h2>
 
+            <p>
+                Add a new customer record to the
+                Unreal Coffee database.
+            </p>
 
-    <label for="input-phoneNum-update">
-        Phone Number:
-    </label>
+        </div>
 
-    <input type="text" name="input-phoneNum-update" id="input-phoneNum-update">
+    </div>
 
 
-    <label for="input-email-update">
-        Email:
-    </label>
+    <form id="add-customer-form-ajax" class="data-form">
 
-    <input type="email" name="input-email-update" id="input-email-update">
+        <div class="form-group">
 
+            <label for="input-name">
+                Name
+            </label>
 
-    <input type="submit">
+            <input type="text" name="input-name" id="input-name" required>
 
-</form>
+        </div>
 
 
-{{!-- Embed our JavaScript to handle Update --}}
-<script src="./js/update_customer.js"></script>
+        <div class="form-group">
+
+            <label for="input-phoneNum">
+                Phone Number
+            </label>
+
+            <input type="text" name="input-phoneNum" id="input-phoneNum">
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="input-email">
+                Email
+            </label>
+
+            <input type="email" name="input-email" id="input-email">
+
+        </div>
+
+
+        <div class="form-actions">
+
+            <input class="button button-primary" type="submit" value="Add Customer">
+
+        </div>
+
+    </form>
+
+</section>
+
+
+
+{{!-- ----------------------------------------------------
+UPDATE CUSTOMER
+----------------------------------------------------- --}}
+
+<section class="form-section">
+
+    <div class="section-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                Update
+            </p>
+
+            <h2>
+                Update a Customer
+            </h2>
+
+            <p>
+                Select an existing customer and enter
+                the information you want to store.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <form id="update-customer-form-ajax" class="data-form">
+
+        <div class="form-group">
+
+            <label for="customer-select">
+                Customer
+            </label>
+
+            <select name="customer-select" id="customer-select" required>
+
+                <option value="">
+                    Select a Customer
+                </option>
+
+                {{#each data}}
+
+                <option value="{{this.idCustomer}}">
+                    {{this.name}} (ID {{this.idCustomer}})
+                </option>
+
+                {{/each}}
+
+            </select>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="input-name-update">
+                Name
+            </label>
+
+            <input type="text" name="input-name-update" id="input-name-update" required>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="input-phoneNum-update">
+                Phone Number
+            </label>
+
+            <input type="text" name="input-phoneNum-update" id="input-phoneNum-update">
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="input-email-update">
+                Email
+            </label>
+
+            <input type="email" name="input-email-update" id="input-email-update">
+
+        </div>
+
+
+        <div class="form-actions">
+
+            <input class="button button-primary" type="submit" value="Update Customer">
+
+        </div>
+
+    </form>
+
+</section>
+
+
+
+{{!-- ----------------------------------------------------
+PAGE-SPECIFIC JAVASCRIPT
+----------------------------------------------------- --}}
+
+<script src="/js/delete_customer.js"></script>
+
+<script src="/js/add_customer.js"></script>
+
+<script src="/js/update_customer.js"></script>

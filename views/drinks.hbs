@@ -1,169 +1,317 @@
 <!-- Code adapted from nodejs-start-app from course github to fit our database -->
 
 <!-- drinks.hbs -->
-<title>Drinks</title>
 
-<h1>Drinks</h1>
 
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+{{!-- ----------------------------------------------------
+PAGE HEADER
+----------------------------------------------------- --}}
 
-[
-<a href="/">Home</a> |
-<a href="/employees">Employees</a> |
-<a href="/customers">Customers</a> |
-<a href="/orders">Orders</a> |
-<a href="/drinks">Drinks</a> |
-<a href="/orders_drinks">Orders_Drinks</a>
-]
+<section class="page-header">
 
+    <p class="eyebrow">
+        Database Management
+    </p>
 
-{{!-- Create a table --}}
-<table id="drinks-table">
+    <h1>
+        Drinks
+    </h1>
 
-    {{!-- Header section --}}
-    <thead>
-        <tr>
-            <th>idDrink</th>
-            <th>name</th>
-            <th>description</th>
-            <th>price</th>
-            <th>delete</th>
-        </tr>
-    </thead>
+    <p class="page-description">
+        View, create, update, and remove drinks
+        available through the Unreal Coffee database.
+    </p>
 
+</section>
 
-    {{!-- Body section --}}
-    <tbody>
 
-        {{#each data}}
 
-        <tr data-value="{{this.idDrink}}">
+{{!-- ----------------------------------------------------
+DRINK TABLE
+----------------------------------------------------- --}}
 
-            <td>{{this.idDrink}}</td>
+<section class="data-section">
 
-            <td>{{this.name}}</td>
+    <div class="section-heading">
 
-            <td>{{this.description}}</td>
+        <div>
 
-            <td>{{this.price}}</td>
+            <p class="eyebrow">
+                Records
+            </p>
 
-            <td>
-                <button onclick="deleteDrink({{this.idDrink}})">
-                    Delete
-                </button>
-            </td>
+            <h2>
+                Drink Menu
+            </h2>
 
-        </tr>
+            <p>
+                These are the drinks currently stored
+                in the database.
+            </p>
 
-        {{/each}}
+        </div>
 
-    </tbody>
+    </div>
 
-</table>
 
+    <div class="table-container">
 
-{{!-- Embed our JavaScript for deleting Drinks --}}
-<script src="./js/delete_drink.js"></script>
+        <table id="drinks-table">
 
+            <thead>
 
+                <tr>
 
-{{!-- Form to add a record to the table --}}
-<h2>Add a New Drink</h2>
+                    <th>
+                        Drink ID
+                    </th>
 
-<p>
-    To add a new drink, please enter its information
-    below and click 'Submit'!
-</p>
+                    <th>
+                        Name
+                    </th>
 
-<form id="add-drink-form-ajax">
+                    <th>
+                        Description
+                    </th>
 
-    <label for="input-name">
-        Name:
-    </label>
+                    <th>
+                        Price
+                    </th>
 
-    <input type="text" name="input-name" id="input-name" required>
+                    <th>
+                        Action
+                    </th>
 
+                </tr>
 
-    <label for="input-description">
-        Description:
-    </label>
+            </thead>
 
-    <input type="text" name="input-description" id="input-description" required>
 
+            <tbody>
 
-    <label for="input-price">
-        Price: $
-    </label>
+                {{#each data}}
 
-    <input type="number" name="input-price" id="input-price" min="0" step="0.01" required>
+                <tr data-value="{{this.idDrink}}">
 
+                    <td>
+                        {{this.idDrink}}
+                    </td>
 
-    <input type="submit">
+                    <td>
+                        {{this.name}}
+                    </td>
 
-</form>
+                    <td>
+                        {{this.description}}
+                    </td>
 
+                    <td>
+                        ${{this.price}}
+                    </td>
 
-{{!-- Embed our JavaScript to handle Create --}}
-<script src="./js/add_drink.js"></script>
+                    <td>
 
+                        <button class="button button-danger" type="button" onclick="deleteDrink({{this.idDrink}})">
+                            Delete
+                        </button>
 
+                    </td>
 
-<h2>Updating a Drink's Info</h2>
+                </tr>
 
-<p>
-    To update a specific drink's information,
-    select the drink and enter its updated information below.
-</p>
+                {{/each}}
 
-<form id="update-drink-form-ajax">
+            </tbody>
 
+        </table>
 
-    <label for="drink-select">
-        Drink:
-    </label>
+    </div>
 
-    <select name="drink-select" id="drink-select" required>
+</section>
 
-        <option value="">
-            Select a Drink
-        </option>
 
-        {{#each data}}
 
-        <option value="{{this.idDrink}}">
-            {{this.name}} (ID {{this.idDrink}})
-        </option>
+{{!-- ----------------------------------------------------
+CREATE DRINK
+----------------------------------------------------- --}}
 
-        {{/each}}
+<section class="form-section">
 
-    </select>
+    <div class="section-heading">
 
+        <div>
 
-    <label for="input-name-update">
-        Name:
-    </label>
+            <p class="eyebrow">
+                Create
+            </p>
 
-    <input type="text" name="input-name-update" id="input-name-update" required>
+            <h2>
+                Add a Drink
+            </h2>
 
+            <p>
+                Add a new drink to the
+                Unreal Coffee menu.
+            </p>
 
-    <label for="input-description-update">
-        Description:
-    </label>
+        </div>
 
-    <input type="text" name="input-description-update" id="input-description-update" required>
+    </div>
 
 
-    <label for="input-price-update">
-        Price: $
-    </label>
+    <form id="add-drink-form-ajax" class="data-form">
 
-    <input type="number" name="input-price-update" id="input-price-update" min="0" step="0.01" required>
+        <div class="form-group">
 
+            <label for="input-name">
+                Name
+            </label>
 
-    <input type="submit">
+            <input type="text" name="input-name" id="input-name" required>
 
-</form>
+        </div>
 
 
-{{!-- Embed our JavaScript to handle Update --}}
-<script src="./js/update_drink.js"></script>
+        <div class="form-group">
+
+            <label for="input-description">
+                Description
+            </label>
+
+            <input type="text" name="input-description" id="input-description" required>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="input-price">
+                Price
+            </label>
+
+            <input type="number" name="input-price" id="input-price" min="0" step="0.01" required>
+
+        </div>
+
+
+        <div class="form-actions">
+
+            <input class="button button-primary" type="submit" value="Add Drink">
+
+        </div>
+
+    </form>
+
+</section>
+
+
+
+{{!-- ----------------------------------------------------
+UPDATE DRINK
+----------------------------------------------------- --}}
+
+<section class="form-section">
+
+    <div class="section-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                Update
+            </p>
+
+            <h2>
+                Update a Drink
+            </h2>
+
+            <p>
+                Select an existing drink and enter
+                the information you want to store.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <form id="update-drink-form-ajax" class="data-form">
+
+        <div class="form-group">
+
+            <label for="drink-select">
+                Drink
+            </label>
+
+            <select name="drink-select" id="drink-select" required>
+
+                <option value="">
+                    Select a Drink
+                </option>
+
+                {{#each data}}
+
+                <option value="{{this.idDrink}}">
+                    {{this.name}} (ID {{this.idDrink}})
+                </option>
+
+                {{/each}}
+
+            </select>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="input-name-update">
+                Name
+            </label>
+
+            <input type="text" name="input-name-update" id="input-name-update" required>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="input-description-update">
+                Description
+            </label>
+
+            <input type="text" name="input-description-update" id="input-description-update" required>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="input-price-update">
+                Price
+            </label>
+
+            <input type="number" name="input-price-update" id="input-price-update" min="0" step="0.01" required>
+
+        </div>
+
+
+        <div class="form-actions">
+
+            <input class="button button-primary" type="submit" value="Update Drink">
+
+        </div>
+
+    </form>
+
+</section>
+
+
+
+{{!-- ----------------------------------------------------
+PAGE-SPECIFIC JAVASCRIPT
+----------------------------------------------------- --}}
+
+<script src="/js/delete_drink.js"></script>
+
+<script src="/js/add_drink.js"></script>
+
+<script src="/js/update_drink.js"></script>

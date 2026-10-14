@@ -1,254 +1,424 @@
 <!-- Code adapted from nodejs-start-app from course github to fit our database -->
 
 <!-- orders.hbs -->
-<title>Orders</title>
 
-<h1>Orders</h1>
 
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+{{!-- ----------------------------------------------------
+PAGE HEADER
+----------------------------------------------------- --}}
 
-[
-<a href="/">Home</a> |
-<a href="/employees">Employees</a> |
-<a href="/customers">Customers</a> |
-<a href="/orders">Orders</a> |
-<a href="/drinks">Drinks</a> |
-<a href="/orders_drinks">Orders_Drinks</a>
-]
+<section class="page-header">
 
+    <p class="eyebrow">
+        Database Management
+    </p>
 
-{{!-- Create a table --}}
-<table id="orders-table">
+    <h1>
+        Orders
+    </h1>
 
-    {{!-- Header section --}}
-    <thead>
+    <p class="page-description">
+        View, create, update, and remove customer orders
+        stored in the Unreal Coffee database.
+    </p>
 
-        <tr>
-            <th>idOrder</th>
-            <th>idEmployee</th>
-            <th>idCustomer</th>
-            <th>totalPrice</th>
-            <th>minutesToProcess</th>
-            <th>orderDate</th>
-            <th>delete</th>
-        </tr>
+</section>
 
-    </thead>
 
 
-    {{!-- Body section --}}
-    <tbody>
+{{!-- ----------------------------------------------------
+ORDER TABLE
+----------------------------------------------------- --}}
 
-        {{#each orderData}}
+<section class="data-section">
 
-        <tr data-value="{{this.idOrder}}">
+    <div class="section-heading">
 
-            <td>{{this.idOrder}}</td>
+        <div>
 
-            <td>{{this.idEmployee}}</td>
+            <p class="eyebrow">
+                Records
+            </p>
 
-            <td>{{this.idCustomer}}</td>
+            <h2>
+                Order History
+            </h2>
 
-            <td>{{this.totalPrice}}</td>
+            <p>
+                These are the orders currently stored
+                in the database.
+            </p>
 
-            <td>{{this.minutesToProcess}}</td>
+        </div>
 
-            <td>{{this.orderDate}}</td>
+    </div>
 
-            <td>
-                <button onclick="deleteOrder({{this.idOrder}})">
-                    Delete
-                </button>
-            </td>
 
-        </tr>
+    <div class="table-container">
 
-        {{/each}}
+        <table id="orders-table">
 
-    </tbody>
+            <thead>
 
-</table>
+                <tr>
 
+                    <th>
+                        Order ID
+                    </th>
 
-{{!-- Embed our JavaScript for deleting Orders --}}
-<script src="./js/delete_order.js"></script>
+                    <th>
+                        Employee ID
+                    </th>
 
+                    <th>
+                        Customer ID
+                    </th>
 
+                    <th>
+                        Total Price
+                    </th>
 
-{{!-- Form to add a record to the table --}}
-<h2>Add a New Order</h2>
+                    <th>
+                        Processing Time
+                    </th>
 
-<p>
-    To add a new Order, please enter its information
-    below and click 'Submit'. The total price will
-    automatically be calculated from the Drinks later
-    added to the Order.
-</p>
+                    <th>
+                        Order Date
+                    </th>
 
+                    <th>
+                        Action
+                    </th>
 
-<form id="add-order-form-ajax">
+                </tr>
 
+            </thead>
 
-    <label for="input-employee">
-        Employee:
-    </label>
 
-    <select name="input-employee" id="input-employee" required>
+            <tbody>
 
-        <option value="">
-            Select an Employee
-        </option>
+                {{#each orderData}}
 
-        {{#each employeeData}}
+                <tr data-value="{{this.idOrder}}">
 
-        <option value="{{this.idEmployee}}">
-            {{this.name}} (ID {{this.idEmployee}})
-        </option>
+                    <td>
+                        {{this.idOrder}}
+                    </td>
 
-        {{/each}}
+                    <td>
+                        {{this.idEmployee}}
+                    </td>
 
-    </select>
+                    <td>
+                        {{this.idCustomer}}
+                    </td>
 
+                    <td>
+                        ${{this.totalPrice}}
+                    </td>
 
-    <label for="input-customer">
-        Customer:
-    </label>
+                    <td>
+                        {{this.minutesToProcess}} min
+                    </td>
 
-    <select name="input-customer" id="input-customer" required>
+                    <td>
+                        {{this.orderDate}}
+                    </td>
 
-        <option value="">
-            Select a Customer
-        </option>
+                    <td>
 
-        {{#each customerData}}
+                        <button class="button button-danger" type="button" onclick="deleteOrder({{this.idOrder}})">
+                            Delete
+                        </button>
 
-        <option value="{{this.idCustomer}}">
-            {{this.name}} (ID {{this.idCustomer}})
-        </option>
+                    </td>
 
-        {{/each}}
+                </tr>
 
-    </select>
+                {{/each}}
 
+            </tbody>
 
-    <label for="input-minutesToProcess">
-        Minutes Taken To Process:
-    </label>
+        </table>
 
-    <input type="number" name="input-minutesToProcess" id="input-minutesToProcess" min="0" step="0.1" required>
+    </div>
 
+</section>
 
-    <label for="input-orderDate">
-        Order Date:
-    </label>
 
-    <input type="date" name="input-orderDate" id="input-orderDate" required>
 
+{{!-- ----------------------------------------------------
+CREATE ORDER
+----------------------------------------------------- --}}
 
-    <input type="submit">
+<section class="form-section">
 
-</form>
+    <div class="section-heading">
 
+        <div>
 
-{{!-- Embed our JavaScript to handle Create --}}
-<script src="./js/add_order.js"></script>
+            <p class="eyebrow">
+                Create
+            </p>
 
+            <h2>
+                Add an Order
+            </h2>
 
+            <p>
+                Create a new order by selecting an employee
+                and customer, entering the processing time,
+                and choosing the order date.
+            </p>
 
-<h2>Updating an Order's Info</h2>
+            <p class="section-note">
+                The order total begins at $0.00 and is
+                calculated automatically as Order Items
+                are added.
+            </p>
 
-<p>
-    To update a specific Order's information,
-    select the Order and enter its updated information below.
-    Total price is calculated automatically from the Drinks
-    belonging to the Order.
-</p>
+        </div>
 
+    </div>
 
-<form id="update-order-form-ajax">
 
+    <form id="add-order-form-ajax" class="data-form">
 
-    <label for="order-select">
-        Order:
-    </label>
+        <div class="form-group">
 
-    <select name="order-select" id="order-select" required>
+            <label for="input-employee">
+                Employee
+            </label>
 
-        <option value="">
-            Select an Order
-        </option>
+            <select name="input-employee" id="input-employee" required>
 
-        {{#each orderData}}
+                <option value="">
+                    Select an Employee
+                </option>
 
-        <option value="{{this.idOrder}}">
-            Order {{this.idOrder}}
-        </option>
+                {{#each employeeData}}
 
-        {{/each}}
+                <option value="{{this.idEmployee}}">
+                    {{this.name}} (ID {{this.idEmployee}})
+                </option>
 
-    </select>
+                {{/each}}
 
+            </select>
 
-    <label for="update-employee">
-        Employee:
-    </label>
+        </div>
 
-    <select name="update-employee" id="update-employee" required>
 
-        <option value="">
-            Select an Employee
-        </option>
+        <div class="form-group">
 
-        {{#each employeeData}}
+            <label for="input-customer">
+                Customer
+            </label>
 
-        <option value="{{this.idEmployee}}">
-            {{this.name}} (ID {{this.idEmployee}})
-        </option>
+            <select name="input-customer" id="input-customer" required>
 
-        {{/each}}
+                <option value="">
+                    Select a Customer
+                </option>
 
-    </select>
+                {{#each customerData}}
 
+                <option value="{{this.idCustomer}}">
+                    {{this.name}} (ID {{this.idCustomer}})
+                </option>
 
-    <label for="update-customer">
-        Customer:
-    </label>
+                {{/each}}
 
-    <select name="update-customer" id="update-customer" required>
+            </select>
 
-        <option value="">
-            Select a Customer
-        </option>
+        </div>
 
-        {{#each customerData}}
 
-        <option value="{{this.idCustomer}}">
-            {{this.name}} (ID {{this.idCustomer}})
-        </option>
+        <div class="form-group">
 
-        {{/each}}
+            <label for="input-minutesToProcess">
+                Processing Time
+            </label>
 
-    </select>
+            <input type="number" name="input-minutesToProcess" id="input-minutesToProcess" min="0" step="0.1" required>
 
+        </div>
 
-    <label for="update-minutesToProcess">
-        Minutes Taken To Process:
-    </label>
 
-    <input type="number" name="update-minutesToProcess" id="update-minutesToProcess" min="0" step="0.1" required>
+        <div class="form-group">
 
+            <label for="input-date">
+                Order Date
+            </label>
 
-    <label for="update-date">
-        Order Date:
-    </label>
+            <input type="date" name="input-date" id="input-date" required>
 
-    <input type="date" name="update-date" id="update-date" required>
+        </div>
 
 
-    <input type="submit">
+        <div class="form-actions">
 
-</form>
+            <input class="button button-primary" type="submit" value="Add Order">
 
+        </div>
 
-{{!-- Embed our JavaScript to handle Update --}}
-<script src="./js/update_order.js"></script>
+    </form>
+
+</section>
+
+
+
+{{!-- ----------------------------------------------------
+UPDATE ORDER
+----------------------------------------------------- --}}
+
+<section class="form-section">
+
+    <div class="section-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                Update
+            </p>
+
+            <h2>
+                Update an Order
+            </h2>
+
+            <p>
+                Select an existing order and enter the
+                information you want to store.
+            </p>
+
+            <p class="section-note">
+                Total price is managed automatically from
+                the Order Items belonging to this order.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <form id="update-order-form-ajax" class="data-form">
+
+        <div class="form-group">
+
+            <label for="order-select">
+                Order
+            </label>
+
+            <select name="order-select" id="order-select" required>
+
+                <option value="">
+                    Select an Order
+                </option>
+
+                {{#each orderData}}
+
+                <option value="{{this.idOrder}}">
+                    Order {{this.idOrder}}
+                </option>
+
+                {{/each}}
+
+            </select>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="update-employee">
+                Employee
+            </label>
+
+            <select name="update-employee" id="update-employee" required>
+
+                <option value="">
+                    Select an Employee
+                </option>
+
+                {{#each employeeData}}
+
+                <option value="{{this.idEmployee}}">
+                    {{this.name}} (ID {{this.idEmployee}})
+                </option>
+
+                {{/each}}
+
+            </select>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="update-customer">
+                Customer
+            </label>
+
+            <select name="update-customer" id="update-customer" required>
+
+                <option value="">
+                    Select a Customer
+                </option>
+
+                {{#each customerData}}
+
+                <option value="{{this.idCustomer}}">
+                    {{this.name}} (ID {{this.idCustomer}})
+                </option>
+
+                {{/each}}
+
+            </select>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="update-minutesToProcess">
+                Processing Time
+            </label>
+
+            <input type="number" name="update-minutesToProcess" id="update-minutesToProcess" min="0" step="0.1"
+                required>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="update-date">
+                Order Date
+            </label>
+
+            <input type="date" name="update-date" id="update-date" required>
+
+        </div>
+
+
+        <div class="form-actions">
+
+            <input class="button button-primary" type="submit" value="Update Order">
+
+        </div>
+
+    </form>
+
+</section>
+
+
+
+{{!-- ----------------------------------------------------
+PAGE-SPECIFIC JAVASCRIPT
+----------------------------------------------------- --}}
+
+<script src="/js/delete_order.js"></script>
+
+<script src="/js/add_order.js"></script>
+
+<script src="/js/update_order.js"></script>

@@ -1,10 +1,12 @@
--- This file serves as the basis for our database. It effectively creates all the different tables in our database,
--- including: Passwords, Employees, Customers, Orders, Drinks, and Orders-Drinks. This database is designed to 
--- store data regarding our fictional restaurant, Latte Larrys. This sql file is designed to meet all the needs
--- of our database for the Project deliverables, including: creating tables that possess a variety of different
--- attributes and interact with other tables in clear relationships, ensuring that the relationships between 
--- tables operate as intended and don't result in any typical database errors, and including/inserting example 
--- data for our tables (located at the end of the file) to verify that our tables function correctly. 
+-- This file serves as the basis for our database. It creates the tables used by our fictional coffee shop,
+-- Unreal Coffee, including: Passwords, Employees, Customers, Orders, Drinks, and Orders_Drinks.
+--
+-- This project was originally developed for a database course and later revisited and improved as part of
+-- my continued software-development work. Improvements include cleaner CRUD behavior, stronger handling of
+-- relational integrity, automatic Order total calculations, improved Orders_Drinks functionality, and a
+-- redesigned user interface.
+--
+-- Example data is included at the end of the file to provide a predictable baseline for testing.
 
 SET FOREIGN_KEY_CHECKS=0;
 SET AUTOCOMMIT = 0;
@@ -86,7 +88,9 @@ CREATE OR REPLACE TABLE Drinks (
   PRIMARY KEY (idDrink)
 );
 
--- SQL statement to create our Orders_Drinks table. 
+
+-- SQL statement to create our Orders_Drinks table.
+-- This junction table connects Drinks to Orders and stores quantity and line totals.
 CREATE OR REPLACE TABLE Orders_Drinks(
   idOrderDrink INT NOT NULL AUTO_INCREMENT,
   idOrder INT NOT NULL,
@@ -113,11 +117,11 @@ INSERT INTO Passwords (
     password
 )
 VALUES
-    ("immapassword"),
-    ("password123"),
-    ("knockknock"),
-    ("Joe_biden"),
-    ("love_coffee_ll")
+    ("cedar_roast"),
+    ("morning_shift"),
+    ("pnw_coffee"),
+    ("espresso_time"),
+    ("unreal_staff")
 ;
 
 
@@ -133,46 +137,46 @@ INSERT INTO Employees (
 VALUES
     (
         1,
-        "John Smith",
-        "555-555-5555",
-        "John@gmail.com",
-        "440 East Knoll Dr",
+        "Maya Thompson",
+        "503-555-0142",
+        "maya.thompson@example.com",
+        "214 NW Everett St",
         1
     ),
 
     (
         2,
-        "Sarah Lock",
-        "544-444-4444",
-        "Sarah@gmail.com",
-        "320 Hill Dr",
+        "Elliot Parker",
+        "503-555-0187",
+        "elliot.parker@example.com",
+        "812 SE Belmont St",
         2
     ),
 
     (
         3,
-        "Adam Hurt",
-        "444-333-2222",
-        "Adam@hotmail.com",
-        "820 Scenic Route",
+        "Nina Brooks",
+        "503-555-0164",
+        "nina.brooks@example.com",
+        "425 NE Alberta St",
         3
     ),
 
     (
         4,
-        "Susan Sue",
-        "333-222-1111",
-        "Susan@gmail.com",
-        "562 Hill Dr",
+        "Caleb Morgan",
+        "503-555-0129",
+        "caleb.morgan@example.com",
+        "1160 NW 23rd Ave",
         4
     ),
 
     (
         5,
-        "Larry David",
-        "234-523-2132",
-        "Larry@gmail.com",
-        "295 David Blvd",
+        "Sophie Chen",
+        "503-555-0195",
+        "sophie.chen@example.com",
+        "730 SE Hawthorne Blvd",
         5
     )
 ;
@@ -188,37 +192,37 @@ INSERT INTO Customers (
 VALUES
     (
         1,
-        "Maddy Sane",
-        "111-111-1111",
-        "maddy@gmail.com"
+        "Avery Collins",
+        "503-555-0211",
+        "avery.collins@example.com"
     ),
 
     (
         2,
-        "Hannah Shirley",
-        "233-233-2323",
-        "hannah@gmail.com"
+        "Jordan Reed",
+        "503-555-0224",
+        "jordan.reed@example.com"
     ),
 
     (
         3,
-        "Donald Trump",
-        "444-454-4545",
-        "donald@gmail.com"
+        "Morgan Lee",
+        "503-555-0236",
+        "morgan.lee@example.com"
     ),
 
     (
         4,
-        "David Laver",
-        "555-454-5555",
-        "larry@gmail.com"
+        "Taylor Nguyen",
+        "503-555-0248",
+        "taylor.nguyen@example.com"
     ),
 
     (
         5,
-        "Bob Smith",
-        "541-982-723",
-        "bob@gmail.com"
+        "Riley Foster",
+        "503-555-0253",
+        "riley.foster@example.com"
     )
 ;
 
@@ -233,11 +237,11 @@ INSERT INTO Orders (
     orderDate
 )
 VALUES 
-    (1, 1, 2, 10, 5, '2024-04-18'),
-    (2, 4, 1, 11, 4, '2024-04-18'),
-    (3, 2, 3, 9, 3, '2024-04-19'),
-    (4, 3, 4, 9, 4, '2024-04-19'),
-    (5, 5, 2, 5.50, 2, '2024-04-20')
+    (1, 1, 2, 10.00, 5.0, '2026-10-06'),
+    (2, 4, 1, 11.00, 4.0, '2026-10-06'),
+    (3, 2, 3, 9.00, 3.0, '2026-10-07'),
+    (4, 3, 4, 9.00, 4.0, '2026-10-07'),
+    (5, 5, 2, 5.50, 2.0, '2026-10-08')
 ;
 
 
@@ -251,37 +255,37 @@ INSERT INTO Drinks (
 VALUES
     (
         1,
-        "Larry's Latte",
-        "Just a typical Latte, made by Larry.",
+        "Willamette Latte",
+        "Classic espresso with smooth steamed milk.",
         5.00
     ),
 
     (
         2,
-        "Larry's Cappuccino",
-        "Just a typical Cappuccino, made by Larry.",
+        "Burnside Cappuccino",
+        "Espresso topped with steamed milk and thick foam.",
         5.50
     ),
 
     (
         3,
-        "Larry's Americano",
-        "Just your typical Americano, but made by Larry.",
+        "Cascade Americano",
+        "Espresso and hot water with a smooth, balanced finish.",
         4.00
     ),
 
     (
         4,
-        "Larry's Cold Brew",
-        "Normal Cold Brew, but Larry made it.",
+        "Rose City Cold Brew",
+        "Slow-steeped cold brew served smooth and chilled.",
         5.00
     ),
 
     (
         5,
-        "Larry's Mocha",
-        "Just a typical Mocha, made by Larry",
-        4.5
+        "Mount Hood Mocha",
+        "Espresso with chocolate and steamed milk.",
+        4.50
     )
 ;
 
@@ -296,11 +300,15 @@ INSERT INTO Orders_Drinks (
 VALUES 
     (1, 1, 1, 5.00),
     (1, 4, 1, 5.00),
+
     (2, 2, 2, 11.00),
+
     (3, 3, 1, 4.00),
     (3, 4, 1, 5.00),
+
     (4, 1, 1, 5.00),
     (4, 3, 1, 4.00),
+
     (5, 2, 1, 5.50)
 ;
 
