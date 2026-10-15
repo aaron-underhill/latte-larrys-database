@@ -9,12 +9,14 @@
     SETUP
 */
 
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const { engine } = require('express-handlebars');
 
 const app = express();
-const PORT = 26801;
+const PORT = process.env.PORT || 26801;
 
 
 // Serve static files from the "public" directory.
