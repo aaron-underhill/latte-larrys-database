@@ -1,9 +1,15 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-// The basis of the following starter code was adapted from the course's nodejs-start-app repository, specifically following step 3
+// The basis of the following starter code was adapted from the course's
+// nodejs-start-app repository.
+//
 // source: https://github.com/osu-cs340-ecampus/nodejs-starter-app
 //
+// The project has since been substantially expanded and refactored,
+// including a migration from MariaDB to PostgreSQL.
+//
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 /*
     SETUP
@@ -15,75 +21,102 @@ const express = require('express');
 const path = require('path');
 const { engine } = require('express-handlebars');
 
+const db = require('./database/db-connector');
+
 const app = express();
+
 const PORT = process.env.PORT || 26801;
 
 
-// Serve static files from the "public" directory.
+// Serve static files from the public directory locally.
 app.use(express.static(path.join(__dirname, 'public')));
 
 
 // Configure Handlebars.
-//
-// views/layouts/main.hbs is the shared layout for every rendered page.
-//
-// The contents of:
-//
-// index.hbs
-// employees.hbs
-// customers.hbs
-// orders.hbs
-// drinks.hbs
-// orders_drinks.hbs
-//
-// are inserted into {{{body}}} inside main.hbs.
 app.engine('.hbs', engine({
     extname: '.hbs',
     defaultLayout: 'main',
     layoutsDir: path.join(__dirname, 'views', 'layouts')
 }));
 
-
-// Tell Express to use Handlebars.
 app.set('view engine', '.hbs');
-
-
-// Tell Express where our views are located.
 app.set('views', path.join(__dirname, 'views'));
 
 
-// Database
-const db = require('./database/db-connector');
-
-
-// Middleware for parsing JSON and URL-encoded request bodies.
+// Parse JSON and URL-encoded request bodies.
 app.use(express.json());
-
-app.use(express.urlencoded({
-    extended: true
-}));
+app.use(express.urlencoded({ extended: true }));
 
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   HOME PAGE
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// SQL COLUMN LISTS
+//
+// PostgreSQL database identifiers use snake_case.
+//
+// The aliases below convert those database names back into the
+// camelCase property names already expected by our Handlebars
+// templates and browser-side JavaScript.
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+const CUSTOMER_COLUMNS = `
+    id_customer AS "idCustomer",
+    name,
+    phone_num AS "phoneNum",
+    email
+`;
+
+
+const DRINK_COLUMNS = `
+    id_drink AS "idDrink",
+    name,
+    description,
+    price
+`;
+
+
+const EMPLOYEE_COLUMNS = `
+    id_employee AS "idEmployee",
+    id_password AS "idPassword",
+    name,
+    phone_num AS "phoneNum",
+    email,
+    address
+`;
+
+
+const ORDER_COLUMNS = `
+    id_order AS "idOrder",
+    id_employee AS "idEmployee",
+    id_customer AS "idCustomer",
+    total_price AS "totalPrice",
+    minutes_to_process AS "minutesToProcess",
+    TO_CHAR(order_date, 'YYYY-MM-DD') AS "orderDate"
+`;
+
+
+const ORDER_DRINK_COLUMNS = `
+    od.id_order_drink AS "idOrderDrink",
+    od.id_order AS "idOrder",
+    od.id_drink AS "idDrink",
+    d.name AS "drinkName",
+    od.quantity,
+    od.drink_total AS "drinkTotal"
+`;
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// HOME PAGE
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 app.get('/', function (req, res) {
-
-    // index.hbs only contains homepage-specific content.
-    //
-    // main.hbs provides:
-    //
-    // <html>
-    // <head>
-    // <title>
-    // navigation
-    // <main>
-    // footer
-    //
-    // index.hbs is inserted into {{{body}}}.
 
     res.render('index', {
         pageTitle: 'Home'
@@ -93,71 +126,49 @@ app.get('/', function (req, res) {
 
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   CUSTOMERS PAGE START
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// CUSTOMERS
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-// ----------------------------------------------------
-// READ: Display all Customers
-// ----------------------------------------------------
+// READ
+app.get('/customers', async function (req, res) {
 
-app.get('/customers', function (req, res) {
+    try {
 
-    let query = `
-        SELECT *
-        FROM Customers;
-    `;
+        const result = await db.pool.query(`
+            SELECT ${CUSTOMER_COLUMNS}
+            FROM customers
+            ORDER BY id_customer;
+        `);
 
+        res.render('customers', {
+            pageTitle: 'Customers',
+            data: result.rows
+        });
 
-    db.pool.query(
-        query,
-        function (error, rows, fields) {
+    } catch (error) {
 
-            if (error) {
+        console.error(error);
+        res.sendStatus(500);
 
-                console.log(error);
-
-                return res.sendStatus(500);
-
-            }
-
-
-            res.render('customers', {
-
-                pageTitle: 'Customers',
-
-                data: rows
-
-            });
-
-        }
-    );
+    }
 
 });
 
 
+// CREATE
+app.post('/add-customer-ajax', async function (req, res) {
 
-// ----------------------------------------------------
-// CREATE: Add a new Customer
-// ----------------------------------------------------
+    const data = req.body;
 
-app.post('/add-customer-ajax', function (req, res) {
-
-    let data = req.body;
-
-
-    let name =
-        data.name?.trim();
-
-    let phoneNum =
-        data.phoneNum?.trim() || null;
-
-    let email =
-        data.email?.trim() || null;
+    const name = data.name?.trim();
+    const phoneNum = data.phoneNum?.trim() || null;
+    const email = data.email?.trim() || null;
 
 
-    // Customer name is required.
     if (!name) {
 
         return res.status(400).json({
@@ -167,97 +178,43 @@ app.post('/add-customer-ajax', function (req, res) {
     }
 
 
-    let insertCustomerQuery = `
-        INSERT INTO Customers
-            (name, phoneNum, email)
-        VALUES (?, ?, ?)
-    `;
+    try {
+
+        const result = await db.pool.query(
+            `
+                INSERT INTO customers (
+                    name,
+                    phone_num,
+                    email
+                )
+                VALUES ($1, $2, $3)
+
+                RETURNING
+                    id_customer AS "idCustomer",
+                    name,
+                    phone_num AS "phoneNum",
+                    email;
+            `,
+            [name, phoneNum, email]
+        );
 
 
-    db.pool.query(
+        res.status(201).json(result.rows[0]);
 
-        insertCustomerQuery,
+    } catch (error) {
 
-        [
-            name,
-            phoneNum,
-            email
-        ],
+        console.error(error);
+        res.sendStatus(400);
 
-        function (error, result, fields) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(400);
-
-            }
-
-
-            // MariaDB created the idCustomer.
-            let newCustomerID =
-                result.insertId;
-
-
-            // Read the actual stored Customer
-            // back from MariaDB.
-            let selectCustomerQuery = `
-                SELECT *
-                FROM Customers
-                WHERE idCustomer = ?
-            `;
-
-
-            db.pool.query(
-
-                selectCustomerQuery,
-
-                [newCustomerID],
-
-                function (error, rows, fields) {
-
-                    if (error) {
-
-                        console.log(error);
-
-                        return res.sendStatus(500);
-
-                    }
-
-
-                    let newCustomer =
-                        rows[0];
-
-
-                    res
-                        .status(201)
-                        .json(newCustomer);
-
-                }
-
-            );
-
-        }
-
-    );
+    }
 
 });
 
 
+// DELETE
+app.delete('/delete-customer-ajax', async function (req, res) {
 
-// ----------------------------------------------------
-// DELETE: Delete a Customer
-// ----------------------------------------------------
-
-app.delete('/delete-customer-ajax', function (req, res) {
-
-    let data =
-        req.body;
-
-
-    let customerID =
-        parseInt(data.id, 10);
+    const customerID = parseInt(req.body.id, 10);
 
 
     if (Number.isNaN(customerID)) {
@@ -269,69 +226,47 @@ app.delete('/delete-customer-ajax', function (req, res) {
     }
 
 
-    let deleteCustomerQuery = `
-        DELETE FROM Customers
-        WHERE idCustomer = ?
-    `;
+    try {
+
+        const result = await db.pool.query(
+            `
+                DELETE FROM customers
+                WHERE id_customer = $1
+                RETURNING id_customer;
+            `,
+            [customerID]
+        );
 
 
-    db.pool.query(
+        if (result.rowCount === 0) {
 
-        deleteCustomerQuery,
-
-        [customerID],
-
-        function (error, result, fields) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(400);
-
-            }
-
-
-            if (result.affectedRows === 0) {
-
-                return res.sendStatus(404);
-
-            }
-
-
-            // Success with no response body.
-            res.sendStatus(204);
+            return res.sendStatus(404);
 
         }
 
-    );
+
+        res.sendStatus(204);
+
+    } catch (error) {
+
+        console.error(error);
+        res.sendStatus(400);
+
+    }
 
 });
 
 
+// UPDATE
+app.put('/put-customer-ajax', async function (req, res) {
 
-// ----------------------------------------------------
-// UPDATE: Update a Customer
-// ----------------------------------------------------
+    const data = req.body;
 
-app.put('/put-customer-ajax', function (req, res) {
+    const customerID = parseInt(data.id, 10);
 
-    let data =
-        req.body;
-
-
-    let customerID =
-        parseInt(data.id, 10);
-
-
-    let name =
-        data.name?.trim();
-
-    let phoneNum =
-        data.phoneNum?.trim() || null;
-
-    let email =
-        data.email?.trim() || null;
+    const name = data.name?.trim();
+    const phoneNum = data.phoneNum?.trim() || null;
+    const email = data.email?.trim() || null;
 
 
     if (Number.isNaN(customerID)) {
@@ -352,158 +287,90 @@ app.put('/put-customer-ajax', function (req, res) {
     }
 
 
-    let updateCustomerQuery = `
-        UPDATE Customers
-        SET
-            name = ?,
-            phoneNum = ?,
-            email = ?
-        WHERE idCustomer = ?
-    `;
+    try {
+
+        const result = await db.pool.query(
+            `
+                UPDATE customers
+
+                SET name = $1,
+                    phone_num = $2,
+                    email = $3
+
+                WHERE id_customer = $4
+
+                RETURNING
+                    id_customer AS "idCustomer",
+                    name,
+                    phone_num AS "phoneNum",
+                    email;
+            `,
+            [name, phoneNum, email, customerID]
+        );
 
 
-    db.pool.query(
+        if (result.rowCount === 0) {
 
-        updateCustomerQuery,
-
-        [
-            name,
-            phoneNum,
-            email,
-            customerID
-        ],
-
-        function (error, result, fields) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(400);
-
-            }
-
-
-            let selectCustomerQuery = `
-                SELECT *
-                FROM Customers
-                WHERE idCustomer = ?
-            `;
-
-
-            db.pool.query(
-
-                selectCustomerQuery,
-
-                [customerID],
-
-                function (error, rows, fields) {
-
-                    if (error) {
-
-                        console.log(error);
-
-                        return res.sendStatus(500);
-
-                    }
-
-
-                    if (rows.length === 0) {
-
-                        return res.sendStatus(404);
-
-                    }
-
-
-                    let updatedCustomer =
-                        rows[0];
-
-
-                    res
-                        .status(200)
-                        .json(updatedCustomer);
-
-                }
-
-            );
+            return res.sendStatus(404);
 
         }
 
-    );
 
-});
+        res.status(200).json(result.rows[0]);
 
+    } catch (error) {
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   CUSTOMERS PAGE END
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        console.error(error);
+        res.sendStatus(400);
 
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   DRINKS PAGE START
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-// ----------------------------------------------------
-// READ: Display all Drinks
-// ----------------------------------------------------
-
-app.get('/drinks', function (req, res) {
-
-    let query = `
-        SELECT *
-        FROM Drinks;
-    `;
-
-
-    db.pool.query(
-        query,
-        function (error, rows, fields) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(500);
-
-            }
-
-
-            res.render('drinks', {
-
-                pageTitle: 'Drinks',
-
-                data: rows
-
-            });
-
-        }
-    );
+    }
 
 });
 
 
 
-// ----------------------------------------------------
-// CREATE: Add a new Drink
-// ----------------------------------------------------
-
-app.post('/add-drink-ajax', function (req, res) {
-
-    let data =
-        req.body;
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// DRINKS
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    let name =
-        data.name?.trim();
+// READ
+app.get('/drinks', async function (req, res) {
 
-    let description =
-        data.description?.trim();
+    try {
 
-    let price =
-        parseFloat(data.price);
+        const result = await db.pool.query(`
+            SELECT ${DRINK_COLUMNS}
+            FROM drinks
+            ORDER BY id_drink;
+        `);
+
+
+        res.render('drinks', {
+            pageTitle: 'Drinks',
+            data: result.rows
+        });
+
+    } catch (error) {
+
+        console.error(error);
+        res.sendStatus(500);
+
+    }
+
+});
+
+
+// CREATE
+app.post('/add-drink-ajax', async function (req, res) {
+
+    const data = req.body;
+
+    const name = data.name?.trim();
+    const description = data.description?.trim();
+    const price = parseFloat(data.price);
 
 
     if (
@@ -513,8 +380,7 @@ app.post('/add-drink-ajax', function (req, res) {
     ) {
 
         return res.status(400).json({
-            error:
-                'Name, description, and a valid price are required.'
+            error: 'Name, description, and a valid price are required.'
         });
 
     }
@@ -523,182 +389,108 @@ app.post('/add-drink-ajax', function (req, res) {
     if (price < 0) {
 
         return res.status(400).json({
-            error:
-                'Price cannot be negative.'
+            error: 'Price cannot be negative.'
         });
 
     }
 
 
-    let insertDrinkQuery = `
-        INSERT INTO Drinks
-            (name, description, price)
-        VALUES (?, ?, ?)
-    `;
+    try {
+
+        const result = await db.pool.query(
+            `
+                INSERT INTO drinks (
+                    name,
+                    description,
+                    price
+                )
+                VALUES ($1, $2, $3)
+
+                RETURNING
+                    id_drink AS "idDrink",
+                    name,
+                    description,
+                    price;
+            `,
+            [name, description, price]
+        );
 
 
-    db.pool.query(
+        res.status(201).json(result.rows[0]);
 
-        insertDrinkQuery,
+    } catch (error) {
 
-        [
-            name,
-            description,
-            price
-        ],
+        console.error(error);
+        res.sendStatus(400);
 
-        function (error, result, fields) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(400);
-
-            }
-
-
-            let newDrinkID =
-                result.insertId;
-
-
-            let selectDrinkQuery = `
-                SELECT *
-                FROM Drinks
-                WHERE idDrink = ?
-            `;
-
-
-            db.pool.query(
-
-                selectDrinkQuery,
-
-                [newDrinkID],
-
-                function (error, rows, fields) {
-
-                    if (error) {
-
-                        console.log(error);
-
-                        return res.sendStatus(500);
-
-                    }
-
-
-                    let newDrink =
-                        rows[0];
-
-
-                    res
-                        .status(201)
-                        .json(newDrink);
-
-                }
-
-            );
-
-        }
-
-    );
+    }
 
 });
 
 
+// DELETE
+app.delete('/delete-drink-ajax', async function (req, res) {
 
-// ----------------------------------------------------
-// DELETE: Delete a Drink
-// ----------------------------------------------------
-
-app.delete('/delete-drink-ajax', function (req, res) {
-
-    let data =
-        req.body;
-
-
-    let drinkID =
-        parseInt(data.id, 10);
+    const drinkID = parseInt(req.body.id, 10);
 
 
     if (Number.isNaN(drinkID)) {
 
         return res.status(400).json({
-            error:
-                'A valid drink ID is required.'
+            error: 'A valid drink ID is required.'
         });
 
     }
 
 
-    let deleteDrinkQuery = `
-        DELETE FROM Drinks
-        WHERE idDrink = ?
-    `;
+    try {
+
+        const result = await db.pool.query(
+            `
+                DELETE FROM drinks
+                WHERE id_drink = $1
+                RETURNING id_drink;
+            `,
+            [drinkID]
+        );
 
 
-    db.pool.query(
+        if (result.rowCount === 0) {
 
-        deleteDrinkQuery,
-
-        [drinkID],
-
-        function (error, result, fields) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(400);
-
-            }
-
-
-            if (result.affectedRows === 0) {
-
-                return res.sendStatus(404);
-
-            }
-
-
-            res.sendStatus(204);
+            return res.sendStatus(404);
 
         }
 
-    );
+
+        res.sendStatus(204);
+
+    } catch (error) {
+
+        // A Drink referenced by orders_drinks cannot be deleted.
+        console.error(error);
+        res.sendStatus(400);
+
+    }
 
 });
 
 
+// UPDATE
+app.put('/put-drink-ajax', async function (req, res) {
 
-// ----------------------------------------------------
-// UPDATE: Update a Drink
-// ----------------------------------------------------
+    const data = req.body;
 
-app.put('/put-drink-ajax', function (req, res) {
+    const drinkID = parseInt(data.id, 10);
 
-    let data =
-        req.body;
-
-
-    let drinkID =
-        parseInt(data.id, 10);
-
-
-    let name =
-        data.name?.trim();
-
-    let description =
-        data.description?.trim();
-
-    let price =
-        parseFloat(data.price);
+    const name = data.name?.trim();
+    const description = data.description?.trim();
+    const price = parseFloat(data.price);
 
 
     if (Number.isNaN(drinkID)) {
 
         return res.status(400).json({
-            error:
-                'A valid drink ID is required.'
+            error: 'A valid drink ID is required.'
         });
 
     }
@@ -711,8 +503,7 @@ app.put('/put-drink-ajax', function (req, res) {
     ) {
 
         return res.status(400).json({
-            error:
-                'Name, description, and a valid price are required.'
+            error: 'Name, description, and a valid price are required.'
         });
 
     }
@@ -721,171 +512,98 @@ app.put('/put-drink-ajax', function (req, res) {
     if (price < 0) {
 
         return res.status(400).json({
-            error:
-                'Price cannot be negative.'
+            error: 'Price cannot be negative.'
         });
 
     }
 
 
-    let updateDrinkQuery = `
-        UPDATE Drinks
-        SET
-            name = ?,
-            description = ?,
-            price = ?
-        WHERE idDrink = ?
-    `;
+    try {
+
+        const result = await db.pool.query(
+            `
+                UPDATE drinks
+
+                SET name = $1,
+                    description = $2,
+                    price = $3
+
+                WHERE id_drink = $4
+
+                RETURNING
+                    id_drink AS "idDrink",
+                    name,
+                    description,
+                    price;
+            `,
+            [name, description, price, drinkID]
+        );
 
 
-    db.pool.query(
+        if (result.rowCount === 0) {
 
-        updateDrinkQuery,
-
-        [
-            name,
-            description,
-            price,
-            drinkID
-        ],
-
-        function (error, result, fields) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(400);
-
-            }
-
-
-            let selectDrinkQuery = `
-                SELECT *
-                FROM Drinks
-                WHERE idDrink = ?
-            `;
-
-
-            db.pool.query(
-
-                selectDrinkQuery,
-
-                [drinkID],
-
-                function (error, rows, fields) {
-
-                    if (error) {
-
-                        console.log(error);
-
-                        return res.sendStatus(500);
-
-                    }
-
-
-                    if (rows.length === 0) {
-
-                        return res.sendStatus(404);
-
-                    }
-
-
-                    let updatedDrink =
-                        rows[0];
-
-
-                    res
-                        .status(200)
-                        .json(updatedDrink);
-
-                }
-
-            );
+            return res.sendStatus(404);
 
         }
 
-    );
 
-});
+        res.status(200).json(result.rows[0]);
 
+    } catch (error) {
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   DRINKS PAGE END
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        console.error(error);
+        res.sendStatus(400);
 
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   EMPLOYEES PAGE START
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-// ----------------------------------------------------
-// READ: Display all Employees
-// ----------------------------------------------------
-
-app.get('/employees', function (req, res) {
-
-    let query = `
-        SELECT *
-        FROM Employees;
-    `;
-
-
-    db.pool.query(
-        query,
-        function (error, rows, fields) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(500);
-
-            }
-
-
-            res.render('employees', {
-
-                pageTitle: 'Employees',
-
-                data: rows
-
-            });
-
-        }
-    );
+    }
 
 });
 
 
 
-// ----------------------------------------------------
-// CREATE: Add a new Employee
-// ----------------------------------------------------
-
-app.post('/add-employee-ajax', function (req, res) {
-
-    let data =
-        req.body;
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// EMPLOYEES
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    let name =
-        data.name?.trim();
+// READ
+app.get('/employees', async function (req, res) {
 
-    let password =
-        data.password?.trim();
+    try {
 
-    let phoneNum =
-        data.phoneNum?.trim();
+        const result = await db.pool.query(`
+            SELECT ${EMPLOYEE_COLUMNS}
+            FROM employees
+            ORDER BY id_employee;
+        `);
 
-    let email =
-        data.email?.trim();
 
-    let address =
-        data.address?.trim();
+        res.render('employees', {
+            pageTitle: 'Employees',
+            data: result.rows
+        });
+
+    } catch (error) {
+
+        console.error(error);
+        res.sendStatus(500);
+
+    }
+
+});
+
+
+// CREATE
+app.post('/add-employee-ajax', async function (req, res) {
+
+    const data = req.body;
+
+    const name = data.name?.trim();
+    const password = data.password?.trim();
+    const phoneNum = data.phoneNum?.trim();
+    const email = data.email?.trim();
+    const address = data.address?.trim();
 
 
     if (
@@ -897,2304 +615,1079 @@ app.post('/add-employee-ajax', function (req, res) {
     ) {
 
         return res.status(400).json({
-            error:
-                'All employee fields are required.'
+            error: 'All employee fields are required.'
         });
 
     }
 
 
-    // STEP 1:
-    // Create the Password row first.
-
-    let insertPasswordQuery = `
-        INSERT INTO Passwords
-            (password)
-        VALUES (?)
-    `;
+    const client = await db.pool.connect();
 
 
-    db.pool.query(
+    try {
 
-        insertPasswordQuery,
-
-        [password],
-
-        function (error, passwordResult, fields) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(400);
-
-            }
+        await client.query('BEGIN');
 
 
-            let newPasswordID =
-                passwordResult.insertId;
+        const passwordResult = await client.query(
+            `
+                INSERT INTO passwords (password)
+                VALUES ($1)
+                RETURNING id_password;
+            `,
+            [password]
+        );
 
 
-            // STEP 2:
-            // Create the Employee using
-            // the new Password ID.
-
-            let insertEmployeeQuery = `
-                INSERT INTO Employees
-                    (
-                        name,
-                        idPassword,
-                        phoneNum,
-                        email,
-                        address
-                    )
-                VALUES (?, ?, ?, ?, ?)
-            `;
+        const newPasswordID =
+            passwordResult.rows[0].id_password;
 
 
-            db.pool.query(
-
-                insertEmployeeQuery,
-
-                [
+        const employeeResult = await client.query(
+            `
+                INSERT INTO employees (
                     name,
-                    newPasswordID,
-                    phoneNum,
+                    id_password,
+                    phone_num,
                     email,
                     address
-                ],
+                )
 
-                function (
-                    error,
-                    employeeResult,
-                    fields
-                ) {
+                VALUES ($1, $2, $3, $4, $5)
 
-                    if (error) {
-
-                        console.log(error);
-
-
-                        // The Password was created,
-                        // but Employee creation failed.
-                        //
-                        // Delete the unused Password row.
-
-                        let cleanupPasswordQuery = `
-                            DELETE FROM Passwords
-                            WHERE idPassword = ?
-                        `;
+                RETURNING
+                    id_employee AS "idEmployee",
+                    id_password AS "idPassword",
+                    name,
+                    phone_num AS "phoneNum",
+                    email,
+                    address;
+            `,
+            [
+                name,
+                newPasswordID,
+                phoneNum,
+                email,
+                address
+            ]
+        );
 
 
-                        return db.pool.query(
-
-                            cleanupPasswordQuery,
-
-                            [newPasswordID],
-
-                            function (cleanupError) {
-
-                                if (cleanupError) {
-
-                                    console.log(
-                                        cleanupError
-                                    );
-
-                                }
+        await client.query('COMMIT');
 
 
-                                return res.sendStatus(
-                                    400
-                                );
+        res.status(201).json(
+            employeeResult.rows[0]
+        );
 
-                            }
+    } catch (error) {
 
-                        );
+        await client.query('ROLLBACK');
 
-                    }
+        console.error(error);
 
+        res.sendStatus(400);
 
-                    let newEmployeeID =
-                        employeeResult.insertId;
+    } finally {
 
+        client.release();
 
-                    // STEP 3:
-                    // Read the actual Employee
-                    // back from MariaDB.
-
-                    let selectEmployeeQuery = `
-                        SELECT *
-                        FROM Employees
-                        WHERE idEmployee = ?
-                    `;
-
-
-                    db.pool.query(
-
-                        selectEmployeeQuery,
-
-                        [newEmployeeID],
-
-                        function (
-                            error,
-                            rows,
-                            fields
-                        ) {
-
-                            if (error) {
-
-                                console.log(error);
-
-                                return res.sendStatus(
-                                    500
-                                );
-
-                            }
-
-
-                            let newEmployee =
-                                rows[0];
-
-
-                            res
-                                .status(201)
-                                .json(
-                                    newEmployee
-                                );
-
-                        }
-
-                    );
-
-                }
-
-            );
-
-        }
-
-    );
+    }
 
 });
 
 
+// DELETE
+app.delete('/delete-employee-ajax', async function (req, res) {
 
-// ----------------------------------------------------
-// DELETE: Delete an Employee
-// ----------------------------------------------------
-
-app.delete(
-    '/delete-employee-ajax',
-    function (req, res) {
-
-        let data =
-            req.body;
+    const employeeID = parseInt(req.body.id, 10);
 
 
-        let employeeID =
-            parseInt(data.id, 10);
+    if (Number.isNaN(employeeID)) {
 
-
-        if (
-            Number.isNaN(employeeID)
-        ) {
-
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'A valid employee ID is required.'
-                });
-
-        }
-
-
-        // STEP 1:
-        // Find the Employee's Password ID
-        // before deleting the Employee.
-
-        let selectEmployeeQuery = `
-            SELECT idPassword
-            FROM Employees
-            WHERE idEmployee = ?
-        `;
-
-
-        db.pool.query(
-
-            selectEmployeeQuery,
-
-            [employeeID],
-
-            function (
-                error,
-                rows,
-                fields
-            ) {
-
-                if (error) {
-
-                    console.log(error);
-
-                    return res.sendStatus(
-                        500
-                    );
-
-                }
-
-
-                if (
-                    rows.length === 0
-                ) {
-
-                    return res.sendStatus(
-                        404
-                    );
-
-                }
-
-
-                let passwordID =
-                    rows[0].idPassword;
-
-
-                // STEP 2:
-                // Delete the Employee.
-                //
-                // Orders.idEmployee uses
-                // ON DELETE SET NULL,
-                // so Orders remain.
-
-                let deleteEmployeeQuery = `
-                    DELETE FROM Employees
-                    WHERE idEmployee = ?
-                `;
-
-
-                db.pool.query(
-
-                    deleteEmployeeQuery,
-
-                    [employeeID],
-
-                    function (
-                        error,
-                        result,
-                        fields
-                    ) {
-
-                        if (error) {
-
-                            console.log(
-                                error
-                            );
-
-                            return res
-                                .sendStatus(
-                                    400
-                                );
-
-                        }
-
-
-                        // STEP 3:
-                        // Delete the Password
-                        // if nothing else
-                        // references it.
-
-                        let deletePasswordQuery = `
-                            DELETE FROM Passwords
-                            WHERE idPassword = ?
-                            AND NOT EXISTS (
-                                SELECT 1
-                                FROM Employees
-                                WHERE idPassword = ?
-                            )
-                        `;
-
-
-                        db.pool.query(
-
-                            deletePasswordQuery,
-
-                            [
-                                passwordID,
-                                passwordID
-                            ],
-
-                            function (
-                                error,
-                                result,
-                                fields
-                            ) {
-
-                                if (error) {
-
-                                    console.log(
-                                        error
-                                    );
-
-                                    return res
-                                        .sendStatus(
-                                            500
-                                        );
-
-                                }
-
-
-                                res.sendStatus(
-                                    204
-                                );
-
-                            }
-
-                        );
-
-                    }
-
-                );
-
-            }
-
-        );
+        return res.status(400).json({
+            error: 'A valid employee ID is required.'
+        });
 
     }
-);
 
 
-
-// ----------------------------------------------------
-// UPDATE: Update an Employee
-// ----------------------------------------------------
-
-app.put(
-    '/put-employee-ajax',
-    function (req, res) {
-
-        let data =
-            req.body;
+    const client = await db.pool.connect();
 
 
-        let employeeID =
-            parseInt(
-                data.id,
-                10
-            );
+    try {
+
+        await client.query('BEGIN');
 
 
-        let name =
-            data.name?.trim();
-
-        let phoneNum =
-            data.phoneNum?.trim();
-
-        let email =
-            data.email?.trim();
-
-        let address =
-            data.address?.trim();
+        const employeeResult = await client.query(
+            `
+                SELECT id_password
+                FROM employees
+                WHERE id_employee = $1;
+            `,
+            [employeeID]
+        );
 
 
-        if (
-            Number.isNaN(employeeID)
-        ) {
+        if (employeeResult.rowCount === 0) {
 
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'A valid employee ID is required.'
-                });
+            await client.query('ROLLBACK');
+
+            return res.sendStatus(404);
 
         }
 
 
-        if (
-            !name ||
-            !phoneNum ||
-            !email ||
-            !address
-        ) {
-
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'Name, phone number, email, and address are required.'
-                });
-
-        }
+        const passwordID =
+            employeeResult.rows[0].id_password;
 
 
-        let updateEmployeeQuery = `
-            UPDATE Employees
-            SET
-                name = ?,
-                phoneNum = ?,
-                email = ?,
-                address = ?
-            WHERE idEmployee = ?
-        `;
+        await client.query(
+            `
+                DELETE FROM employees
+                WHERE id_employee = $1;
+            `,
+            [employeeID]
+        );
 
 
-        db.pool.query(
+        await client.query(
+            `
+                DELETE FROM passwords p
 
-            updateEmployeeQuery,
+                WHERE p.id_password = $1
 
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM employees e
+                    WHERE e.id_password = p.id_password
+                );
+            `,
+            [passwordID]
+        );
+
+
+        await client.query('COMMIT');
+
+
+        res.sendStatus(204);
+
+    } catch (error) {
+
+        await client.query('ROLLBACK');
+
+        console.error(error);
+
+        res.sendStatus(400);
+
+    } finally {
+
+        client.release();
+
+    }
+
+});
+
+
+// UPDATE
+app.put('/put-employee-ajax', async function (req, res) {
+
+    const data = req.body;
+
+    const employeeID = parseInt(data.id, 10);
+
+    const name = data.name?.trim();
+    const phoneNum = data.phoneNum?.trim();
+    const email = data.email?.trim();
+    const address = data.address?.trim();
+
+
+    if (Number.isNaN(employeeID)) {
+
+        return res.status(400).json({
+            error: 'A valid employee ID is required.'
+        });
+
+    }
+
+
+    if (
+        !name ||
+        !phoneNum ||
+        !email ||
+        !address
+    ) {
+
+        return res.status(400).json({
+            error: 'Name, phone number, email, and address are required.'
+        });
+
+    }
+
+
+    try {
+
+        const result = await db.pool.query(
+            `
+                UPDATE employees
+
+                SET name = $1,
+                    phone_num = $2,
+                    email = $3,
+                    address = $4
+
+                WHERE id_employee = $5
+
+                RETURNING
+                    id_employee AS "idEmployee",
+                    id_password AS "idPassword",
+                    name,
+                    phone_num AS "phoneNum",
+                    email,
+                    address;
+            `,
             [
                 name,
                 phoneNum,
                 email,
                 address,
                 employeeID
-            ],
-
-            function (
-                error,
-                result,
-                fields
-            ) {
-
-                if (error) {
-
-                    console.log(error);
-
-                    return res
-                        .sendStatus(
-                            400
-                        );
-
-                }
-
-
-                let selectEmployeeQuery = `
-                    SELECT *
-                    FROM Employees
-                    WHERE idEmployee = ?
-                `;
-
-
-                db.pool.query(
-
-                    selectEmployeeQuery,
-
-                    [employeeID],
-
-                    function (
-                        error,
-                        rows,
-                        fields
-                    ) {
-
-                        if (error) {
-
-                            console.log(
-                                error
-                            );
-
-                            return res
-                                .sendStatus(
-                                    500
-                                );
-
-                        }
-
-
-                        if (
-                            rows.length === 0
-                        ) {
-
-                            return res
-                                .sendStatus(
-                                    404
-                                );
-
-                        }
-
-
-                        let updatedEmployee =
-                            rows[0];
-
-
-                        res
-                            .status(200)
-                            .json(
-                                updatedEmployee
-                            );
-
-                    }
-
-                );
-
-            }
-
+            ]
         );
 
-    }
-);
 
+        if (result.rowCount === 0) {
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   EMPLOYEES PAGE END
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   ORDERS PAGE START
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-// ----------------------------------------------------
-// READ: Display all Orders
-// ----------------------------------------------------
-
-app.get('/orders', function (req, res) {
-
-    let orderQuery = `
-        SELECT
-            idOrder,
-            idEmployee,
-            idCustomer,
-            totalPrice,
-            minutesToProcess,
-            DATE_FORMAT(
-                orderDate,
-                '%Y-%m-%d'
-            ) AS orderDate
-        FROM Orders;
-    `;
-
-
-    // Customer information for dropdowns.
-    let customerQuery = `
-        SELECT
-            idCustomer,
-            name
-        FROM Customers;
-    `;
-
-
-    // Employee information for dropdowns.
-    let employeeQuery = `
-        SELECT
-            idEmployee,
-            name
-        FROM Employees;
-    `;
-
-
-    db.pool.query(
-
-        orderQuery,
-
-        function (
-            error,
-            orderRows,
-            fields
-        ) {
-
-            if (error) {
-
-                console.log(error);
-
-                return res.sendStatus(
-                    500
-                );
-
-            }
-
-
-            db.pool.query(
-
-                customerQuery,
-
-                function (
-                    error,
-                    customerRows,
-                    fields
-                ) {
-
-                    if (error) {
-
-                        console.log(
-                            error
-                        );
-
-                        return res
-                            .sendStatus(
-                                500
-                            );
-
-                    }
-
-
-                    db.pool.query(
-
-                        employeeQuery,
-
-                        function (
-                            error,
-                            employeeRows,
-                            fields
-                        ) {
-
-                            if (error) {
-
-                                console.log(
-                                    error
-                                );
-
-                                return res
-                                    .sendStatus(
-                                        500
-                                    );
-
-                            }
-
-
-                            res.render(
-                                'orders',
-                                {
-
-                                    pageTitle:
-                                        'Orders',
-
-                                    orderData:
-                                        orderRows,
-
-                                    customerData:
-                                        customerRows,
-
-                                    employeeData:
-                                        employeeRows
-
-                                }
-                            );
-
-                        }
-
-                    );
-
-                }
-
-            );
+            return res.sendStatus(404);
 
         }
 
-    );
+
+        res.status(200).json(result.rows[0]);
+
+    } catch (error) {
+
+        console.error(error);
+        res.sendStatus(400);
+
+    }
 
 });
 
 
 
-// ----------------------------------------------------
-// CREATE: Add a new Order
-// ----------------------------------------------------
-
-app.post(
-    '/add-order-ajax',
-    function (req, res) {
-
-        let data =
-            req.body;
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// ORDERS
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-        let employeeID =
-            parseInt(
-                data.idEmployee,
-                10
-            );
+// READ
+app.get('/orders', async function (req, res) {
 
-        let customerID =
-            parseInt(
-                data.idCustomer,
-                10
-            );
+    try {
 
-        let minutesToProcess =
-            parseFloat(
-                data.minutesToProcess
-            );
+        const [
+            orderResult,
+            customerResult,
+            employeeResult
+        ] = await Promise.all([
 
-        let orderDate =
-            data.orderDate?.trim();
+            db.pool.query(`
+                SELECT ${ORDER_COLUMNS}
+                FROM orders
+                ORDER BY id_order;
+            `),
 
+            db.pool.query(`
+                SELECT
+                    id_customer AS "idCustomer",
+                    name
+                FROM customers
+                ORDER BY id_customer;
+            `),
 
-        if (
-            Number.isNaN(
-                employeeID
-            ) ||
-            Number.isNaN(
-                customerID
-            ) ||
-            Number.isNaN(
-                minutesToProcess
-            ) ||
-            !orderDate
-        ) {
+            db.pool.query(`
+                SELECT
+                    id_employee AS "idEmployee",
+                    name
+                FROM employees
+                ORDER BY id_employee;
+            `)
 
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'Employee, customer, processing time, and order date are required.'
-                });
-
-        }
+        ]);
 
 
-        if (
-            minutesToProcess < 0
-        ) {
+        res.render('orders', {
+            pageTitle: 'Orders',
+            orderData: orderResult.rows,
+            customerData: customerResult.rows,
+            employeeData: employeeResult.rows
+        });
 
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'Processing time cannot be negative.'
-                });
+    } catch (error) {
 
-        }
+        console.error(error);
+        res.sendStatus(500);
+
+    }
+
+});
 
 
-        /*
-            totalPrice is not supplied here.
+// CREATE
+app.post('/add-order-ajax', async function (req, res) {
 
-            MariaDB initializes totalPrice
-            to 0.00 because a new Order
-            has no line items yet.
-        */
+    const data = req.body;
 
-        let insertOrderQuery = `
-            INSERT INTO Orders
-                (
-                    idEmployee,
-                    idCustomer,
-                    minutesToProcess,
-                    orderDate
+    const employeeID = parseInt(data.idEmployee, 10);
+    const customerID = parseInt(data.idCustomer, 10);
+
+    const minutesToProcess =
+        parseFloat(data.minutesToProcess);
+
+    const orderDate =
+        data.orderDate?.trim();
+
+
+    if (
+        Number.isNaN(employeeID) ||
+        Number.isNaN(customerID) ||
+        Number.isNaN(minutesToProcess) ||
+        !orderDate
+    ) {
+
+        return res.status(400).json({
+            error: 'Employee, customer, processing time, and order date are required.'
+        });
+
+    }
+
+
+    if (minutesToProcess < 0) {
+
+        return res.status(400).json({
+            error: 'Processing time cannot be negative.'
+        });
+
+    }
+
+
+    try {
+
+        const result = await db.pool.query(
+            `
+                INSERT INTO orders (
+                    id_employee,
+                    id_customer,
+                    minutes_to_process,
+                    order_date
                 )
-            VALUES (?, ?, ?, ?)
-        `;
 
+                VALUES ($1, $2, $3, $4)
 
-        db.pool.query(
-
-            insertOrderQuery,
-
+                RETURNING
+                    id_order AS "idOrder",
+                    id_employee AS "idEmployee",
+                    id_customer AS "idCustomer",
+                    total_price AS "totalPrice",
+                    minutes_to_process AS "minutesToProcess",
+                    TO_CHAR(order_date, 'YYYY-MM-DD') AS "orderDate";
+            `,
             [
                 employeeID,
                 customerID,
                 minutesToProcess,
                 orderDate
-            ],
-
-            function (
-                error,
-                result,
-                fields
-            ) {
-
-                if (error) {
-
-                    console.log(error);
-
-                    return res
-                        .sendStatus(
-                            400
-                        );
-
-                }
-
-
-                let newOrderID =
-                    result.insertId;
-
-
-                let selectOrderQuery = `
-                    SELECT
-                        idOrder,
-                        idEmployee,
-                        idCustomer,
-                        totalPrice,
-                        minutesToProcess,
-                        DATE_FORMAT(
-                            orderDate,
-                            '%Y-%m-%d'
-                        ) AS orderDate
-                    FROM Orders
-                    WHERE idOrder = ?
-                `;
-
-
-                db.pool.query(
-
-                    selectOrderQuery,
-
-                    [newOrderID],
-
-                    function (
-                        error,
-                        rows,
-                        fields
-                    ) {
-
-                        if (error) {
-
-                            console.log(
-                                error
-                            );
-
-                            return res
-                                .sendStatus(
-                                    500
-                                );
-
-                        }
-
-
-                        let newOrder =
-                            rows[0];
-
-
-                        res
-                            .status(201)
-                            .json(
-                                newOrder
-                            );
-
-                    }
-
-                );
-
-            }
-
+            ]
         );
 
+
+        res.status(201).json(result.rows[0]);
+
+    } catch (error) {
+
+        console.error(error);
+        res.sendStatus(400);
+
     }
-);
+
+});
 
 
+// DELETE
+app.delete('/delete-order-ajax', async function (req, res) {
 
-// ----------------------------------------------------
-// DELETE: Delete an Order
-// ----------------------------------------------------
-
-app.delete(
-    '/delete-order-ajax',
-    function (req, res) {
-
-        let data =
-            req.body;
+    const orderID = parseInt(req.body.id, 10);
 
 
-        let orderID =
-            parseInt(
-                data.id,
-                10
-            );
+    if (Number.isNaN(orderID)) {
+
+        return res.status(400).json({
+            error: 'A valid order ID is required.'
+        });
+
+    }
 
 
-        if (
-            Number.isNaN(
-                orderID
-            )
-        ) {
+    try {
 
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'A valid order ID is required.'
-                });
-
-        }
-
-
-        let deleteOrderQuery = `
-            DELETE FROM Orders
-            WHERE idOrder = ?
-        `;
-
-
-        db.pool.query(
-
-            deleteOrderQuery,
-
-            [orderID],
-
-            function (
-                error,
-                result,
-                fields
-            ) {
-
-                if (error) {
-
-                    console.log(error);
-
-                    return res
-                        .sendStatus(
-                            400
-                        );
-
-                }
-
-
-                if (
-                    result
-                        .affectedRows === 0
-                ) {
-
-                    return res
-                        .sendStatus(
-                            404
-                        );
-
-                }
-
-
-                /*
-                    Orders_Drinks uses
-                    ON DELETE CASCADE.
-
-                    Therefore, deleting
-                    an Order also deletes
-                    its Order Items.
-                */
-
-                res.sendStatus(204);
-
-            }
-
+        const result = await db.pool.query(
+            `
+                DELETE FROM orders
+                WHERE id_order = $1
+                RETURNING id_order;
+            `,
+            [orderID]
         );
 
+
+        if (result.rowCount === 0) {
+
+            return res.sendStatus(404);
+
+        }
+
+
+        // orders_drinks uses ON DELETE CASCADE,
+        // so its related rows are removed automatically.
+        res.sendStatus(204);
+
+    } catch (error) {
+
+        console.error(error);
+        res.sendStatus(400);
+
     }
-);
+
+});
 
 
+// UPDATE
+app.put('/put-order-ajax', async function (req, res) {
 
-// ----------------------------------------------------
-// UPDATE: Update an Order
-// ----------------------------------------------------
+    const data = req.body;
 
-app.put(
-    '/put-order-ajax',
-    function (req, res) {
+    const orderID = parseInt(data.id, 10);
+    const employeeID = parseInt(data.idEmployee, 10);
+    const customerID = parseInt(data.idCustomer, 10);
 
-        let data =
-            req.body;
+    const minutesToProcess =
+        parseFloat(data.minutesToProcess);
 
-
-        let orderID =
-            parseInt(
-                data.id,
-                10
-            );
-
-        let employeeID =
-            parseInt(
-                data.idEmployee,
-                10
-            );
-
-        let customerID =
-            parseInt(
-                data.idCustomer,
-                10
-            );
-
-        let minutesToProcess =
-            parseFloat(
-                data.minutesToProcess
-            );
-
-        let orderDate =
-            data.orderDate?.trim();
+    const orderDate =
+        data.orderDate?.trim();
 
 
-        if (
-            Number.isNaN(orderID) ||
-            Number.isNaN(employeeID) ||
-            Number.isNaN(customerID) ||
-            Number.isNaN(
-                minutesToProcess
-            ) ||
-            !orderDate
-        ) {
+    if (
+        Number.isNaN(orderID) ||
+        Number.isNaN(employeeID) ||
+        Number.isNaN(customerID) ||
+        Number.isNaN(minutesToProcess) ||
+        !orderDate
+    ) {
 
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'Valid Order, Employee, Customer, processing time, and date values are required.'
-                });
+        return res.status(400).json({
+            error: 'Valid Order, Employee, Customer, processing time, and date values are required.'
+        });
 
-        }
+    }
 
 
-        if (
-            minutesToProcess < 0
-        ) {
+    if (minutesToProcess < 0) {
 
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'Processing time cannot be negative.'
-                });
+        return res.status(400).json({
+            error: 'Processing time cannot be negative.'
+        });
 
-        }
+    }
 
 
-        /*
-            totalPrice is intentionally
-            not changed here.
+    try {
 
-            It is derived from
-            Orders_Drinks.
-        */
+        const result = await db.pool.query(
+            `
+                UPDATE orders
 
-        let updateOrderQuery = `
-            UPDATE Orders
-            SET
-                idEmployee = ?,
-                idCustomer = ?,
-                minutesToProcess = ?,
-                orderDate = ?
-            WHERE idOrder = ?
-        `;
+                SET id_employee = $1,
+                    id_customer = $2,
+                    minutes_to_process = $3,
+                    order_date = $4
 
+                WHERE id_order = $5
 
-        db.pool.query(
-
-            updateOrderQuery,
-
+                RETURNING
+                    id_order AS "idOrder",
+                    id_employee AS "idEmployee",
+                    id_customer AS "idCustomer",
+                    total_price AS "totalPrice",
+                    minutes_to_process AS "minutesToProcess",
+                    TO_CHAR(order_date, 'YYYY-MM-DD') AS "orderDate";
+            `,
             [
                 employeeID,
                 customerID,
                 minutesToProcess,
                 orderDate,
                 orderID
-            ],
-
-            function (
-                error,
-                result,
-                fields
-            ) {
-
-                if (error) {
-
-                    console.log(error);
-
-                    return res
-                        .sendStatus(
-                            400
-                        );
-
-                }
-
-
-                let selectOrderQuery = `
-                    SELECT
-                        idOrder,
-                        idEmployee,
-                        idCustomer,
-                        totalPrice,
-                        minutesToProcess,
-                        DATE_FORMAT(
-                            orderDate,
-                            '%Y-%m-%d'
-                        ) AS orderDate
-                    FROM Orders
-                    WHERE idOrder = ?
-                `;
-
-
-                db.pool.query(
-
-                    selectOrderQuery,
-
-                    [orderID],
-
-                    function (
-                        error,
-                        rows,
-                        fields
-                    ) {
-
-                        if (error) {
-
-                            console.log(
-                                error
-                            );
-
-                            return res
-                                .sendStatus(
-                                    500
-                                );
-
-                        }
-
-
-                        if (
-                            rows.length === 0
-                        ) {
-
-                            return res
-                                .sendStatus(
-                                    404
-                                );
-
-                        }
-
-
-                        let updatedOrder =
-                            rows[0];
-
-
-                        res
-                            .status(200)
-                            .json(
-                                updatedOrder
-                            );
-
-                    }
-
-                );
-
-            }
-
+            ]
         );
 
-    }
-);
 
+        if (result.rowCount === 0) {
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   ORDERS PAGE END
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   ORDERS_DRINKS / ORDER ITEMS PAGE START
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-// ----------------------------------------------------
-// READ: Display all Order Items
-// ----------------------------------------------------
-
-app.get(
-    '/orders_drinks',
-    function (req, res) {
-
-        let orderDrinkQuery = `
-            SELECT
-                Orders_Drinks.idOrderDrink,
-                Orders_Drinks.idOrder,
-                Orders_Drinks.idDrink,
-                Drinks.name AS drinkName,
-                Orders_Drinks.quantity,
-                Orders_Drinks.drinkTotal
-            FROM Orders_Drinks
-
-            INNER JOIN Drinks
-                ON Orders_Drinks.idDrink
-                = Drinks.idDrink
-
-            ORDER BY
-                Orders_Drinks.idOrderDrink;
-        `;
-
-
-        let orderQuery = `
-            SELECT idOrder
-            FROM Orders
-            ORDER BY idOrder;
-        `;
-
-
-        let drinkQuery = `
-            SELECT
-                idDrink,
-                name,
-                price
-            FROM Drinks
-            ORDER BY idDrink;
-        `;
-
-
-        db.pool.query(
-
-            orderDrinkQuery,
-
-            function (
-                error,
-                orderDrinkRows,
-                fields
-            ) {
-
-                if (error) {
-
-                    console.log(error);
-
-                    return res
-                        .sendStatus(
-                            500
-                        );
-
-                }
-
-
-                db.pool.query(
-
-                    orderQuery,
-
-                    function (
-                        error,
-                        orderRows,
-                        fields
-                    ) {
-
-                        if (error) {
-
-                            console.log(
-                                error
-                            );
-
-                            return res
-                                .sendStatus(
-                                    500
-                                );
-
-                        }
-
-
-                        db.pool.query(
-
-                            drinkQuery,
-
-                            function (
-                                error,
-                                drinkRows,
-                                fields
-                            ) {
-
-                                if (error) {
-
-                                    console.log(
-                                        error
-                                    );
-
-                                    return res
-                                        .sendStatus(
-                                            500
-                                        );
-
-                                }
-
-
-                                /*
-                                    Internally:
-
-                                    /orders_drinks
-                                    orders_drinks.hbs
-                                    Orders_Drinks
-
-                                    User-facing name:
-
-                                    Order Items
-                                */
-
-                                res.render(
-                                    'orders_drinks',
-                                    {
-
-                                        pageTitle:
-                                            'Order Items',
-
-                                        orderDrinkData:
-                                            orderDrinkRows,
-
-                                        orderData:
-                                            orderRows,
-
-                                        drinkData:
-                                            drinkRows
-
-                                    }
-                                );
-
-                            }
-
-                        );
-
-                    }
-
-                );
-
-            }
-
-        );
-
-    }
-);
-
-
-
-// ----------------------------------------------------
-// CREATE: Add a Drink line item to an Order
-// ----------------------------------------------------
-
-app.post(
-    '/add-order_drink-ajax',
-    function (req, res) {
-
-        let data =
-            req.body;
-
-
-        let orderID =
-            parseInt(
-                data.idOrder,
-                10
-            );
-
-        let drinkID =
-            parseInt(
-                data.idDrink,
-                10
-            );
-
-        let quantity =
-            parseInt(
-                data.quantity,
-                10
-            );
-
-
-        if (
-            Number.isNaN(orderID) ||
-            Number.isNaN(drinkID) ||
-            Number.isNaN(quantity) ||
-            quantity <= 0
-        ) {
-
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'A valid Order, Drink, and quantity greater than zero are required.'
-                });
+            return res.sendStatus(404);
 
         }
 
 
-        // STEP 1:
-        // Get the Drink's current price
-        // directly from MariaDB.
+        res.status(200).json(result.rows[0]);
 
-        let selectDrinkQuery = `
-            SELECT price
-            FROM Drinks
-            WHERE idDrink = ?
-        `;
+    } catch (error) {
 
-
-        db.pool.query(
-
-            selectDrinkQuery,
-
-            [drinkID],
-
-            function (
-                error,
-                drinkRows,
-                fields
-            ) {
-
-                if (error) {
-
-                    console.log(error);
-
-                    return res
-                        .sendStatus(
-                            500
-                        );
-
-                }
-
-
-                if (
-                    drinkRows.length === 0
-                ) {
-
-                    return res
-                        .status(404)
-                        .json({
-                            error:
-                                'Drink not found.'
-                        });
-
-                }
-
-
-                let drinkPrice =
-                    parseFloat(
-                        drinkRows[0]
-                            .price
-                    );
-
-
-                let drinkTotal =
-                    drinkPrice *
-                    quantity;
-
-
-                // STEP 2:
-                // Insert the Order Item.
-
-                let insertOrderDrinkQuery = `
-                    INSERT INTO Orders_Drinks
-                        (
-                            idOrder,
-                            idDrink,
-                            quantity,
-                            drinkTotal
-                        )
-                    VALUES (?, ?, ?, ?)
-                `;
-
-
-                db.pool.query(
-
-                    insertOrderDrinkQuery,
-
-                    [
-                        orderID,
-                        drinkID,
-                        quantity,
-                        drinkTotal
-                    ],
-
-                    function (
-                        error,
-                        result,
-                        fields
-                    ) {
-
-                        if (error) {
-
-                            console.log(
-                                error
-                            );
-
-                            return res
-                                .sendStatus(
-                                    400
-                                );
-
-                        }
-
-
-                        let newOrderDrinkID =
-                            result.insertId;
-
-
-                        // STEP 3:
-                        // Recalculate the
-                        // parent Order total.
-
-                        recalculateOrderTotal(
-
-                            orderID,
-
-                            function (
-                                error,
-                                result
-                            ) {
-
-                                if (
-                                    error
-                                ) {
-
-                                    console.log(
-                                        error
-                                    );
-
-                                    return res
-                                        .sendStatus(
-                                            500
-                                        );
-
-                                }
-
-
-                                // STEP 4:
-                                // Read the new
-                                // line item back.
-
-                                let selectOrderDrinkQuery = `
-                                    SELECT
-                                        Orders_Drinks.idOrderDrink,
-                                        Orders_Drinks.idOrder,
-                                        Orders_Drinks.idDrink,
-                                        Drinks.name AS drinkName,
-                                        Orders_Drinks.quantity,
-                                        Orders_Drinks.drinkTotal
-                                    FROM Orders_Drinks
-
-                                    INNER JOIN Drinks
-                                        ON Orders_Drinks.idDrink
-                                        = Drinks.idDrink
-
-                                    WHERE
-                                        Orders_Drinks.idOrderDrink = ?
-                                `;
-
-
-                                db.pool.query(
-
-                                    selectOrderDrinkQuery,
-
-                                    [
-                                        newOrderDrinkID
-                                    ],
-
-                                    function (
-                                        error,
-                                        rows,
-                                        fields
-                                    ) {
-
-                                        if (
-                                            error
-                                        ) {
-
-                                            console.log(
-                                                error
-                                            );
-
-                                            return res
-                                                .sendStatus(
-                                                    500
-                                                );
-
-                                        }
-
-
-                                        let newOrderDrink =
-                                            rows[0];
-
-
-                                        res
-                                            .status(
-                                                201
-                                            )
-                                            .json(
-                                                newOrderDrink
-                                            );
-
-                                    }
-
-                                );
-
-                            }
-
-                        );
-
-                    }
-
-                );
-
-            }
-
-        );
+        console.error(error);
+        res.sendStatus(400);
 
     }
-);
+
+});
 
 
 
-// ----------------------------------------------------
-// DELETE: Remove a Drink line item from an Order
-// ----------------------------------------------------
-
-app.delete(
-    '/delete-order_drink-ajax',
-    function (req, res) {
-
-        let data =
-            req.body;
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// ORDER ITEMS
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-        let orderDrinkID =
-            parseInt(
-                data.id,
-                10
-            );
+// READ
+app.get('/orders_drinks', async function (req, res) {
+
+    try {
+
+        const [
+            orderDrinkResult,
+            orderResult,
+            drinkResult
+        ] = await Promise.all([
+
+            db.pool.query(`
+                SELECT ${ORDER_DRINK_COLUMNS}
+
+                FROM orders_drinks od
+
+                INNER JOIN drinks d
+                    ON od.id_drink = d.id_drink
+
+                ORDER BY od.id_order_drink;
+            `),
+
+            db.pool.query(`
+                SELECT id_order AS "idOrder"
+                FROM orders
+                ORDER BY id_order;
+            `),
+
+            db.pool.query(`
+                SELECT
+                    id_drink AS "idDrink",
+                    name,
+                    price
+                FROM drinks
+                ORDER BY id_drink;
+            `)
+
+        ]);
 
 
-        if (
-            Number.isNaN(
+        res.render('orders_drinks', {
+            pageTitle: 'Order Items',
+            orderDrinkData: orderDrinkResult.rows,
+            orderData: orderResult.rows,
+            drinkData: drinkResult.rows
+        });
+
+    } catch (error) {
+
+        console.error(error);
+        res.sendStatus(500);
+
+    }
+
+});
+
+
+// CREATE
+app.post('/add-order_drink-ajax', async function (req, res) {
+
+    const data = req.body;
+
+    const orderID = parseInt(data.idOrder, 10);
+    const drinkID = parseInt(data.idDrink, 10);
+    const quantity = parseInt(data.quantity, 10);
+
+
+    if (
+        Number.isNaN(orderID) ||
+        Number.isNaN(drinkID) ||
+        Number.isNaN(quantity) ||
+        quantity <= 0
+    ) {
+
+        return res.status(400).json({
+            error: 'A valid Order, Drink, and quantity greater than zero are required.'
+        });
+
+    }
+
+
+    const client = await db.pool.connect();
+
+
+    try {
+
+        await client.query('BEGIN');
+
+
+        const drinkResult = await client.query(
+            `
+                SELECT price
+                FROM drinks
+                WHERE id_drink = $1;
+            `,
+            [drinkID]
+        );
+
+
+        if (drinkResult.rowCount === 0) {
+
+            await client.query('ROLLBACK');
+
+            return res.status(404).json({
+                error: 'Drink not found.'
+            });
+
+        }
+
+
+        const drinkPrice =
+            parseFloat(drinkResult.rows[0].price);
+
+        const drinkTotal =
+            drinkPrice * quantity;
+
+
+        const insertResult = await client.query(
+            `
+                INSERT INTO orders_drinks (
+                    id_order,
+                    id_drink,
+                    quantity,
+                    drink_total
+                )
+
+                VALUES ($1, $2, $3, $4)
+
+                RETURNING id_order_drink;
+            `,
+            [
+                orderID,
+                drinkID,
+                quantity,
+                drinkTotal
+            ]
+        );
+
+
+        const newOrderDrinkID =
+            insertResult.rows[0].id_order_drink;
+
+
+        await recalculateOrderTotal(
+            orderID,
+            client
+        );
+
+
+        const result = await client.query(
+            `
+                SELECT ${ORDER_DRINK_COLUMNS}
+
+                FROM orders_drinks od
+
+                INNER JOIN drinks d
+                    ON od.id_drink = d.id_drink
+
+                WHERE od.id_order_drink = $1;
+            `,
+            [newOrderDrinkID]
+        );
+
+
+        await client.query('COMMIT');
+
+
+        res.status(201).json(result.rows[0]);
+
+    } catch (error) {
+
+        await client.query('ROLLBACK');
+
+        console.error(error);
+
+        res.sendStatus(400);
+
+    } finally {
+
+        client.release();
+
+    }
+
+});
+
+
+// DELETE
+app.delete('/delete-order_drink-ajax', async function (req, res) {
+
+    const orderDrinkID =
+        parseInt(req.body.id, 10);
+
+
+    if (Number.isNaN(orderDrinkID)) {
+
+        return res.status(400).json({
+            error: 'A valid Order Item ID is required.'
+        });
+
+    }
+
+
+    const client = await db.pool.connect();
+
+
+    try {
+
+        await client.query('BEGIN');
+
+
+        const result = await client.query(
+            `
+                SELECT id_order
+                FROM orders_drinks
+                WHERE id_order_drink = $1;
+            `,
+            [orderDrinkID]
+        );
+
+
+        if (result.rowCount === 0) {
+
+            await client.query('ROLLBACK');
+
+            return res.sendStatus(404);
+
+        }
+
+
+        const orderID =
+            result.rows[0].id_order;
+
+
+        await client.query(
+            `
+                DELETE FROM orders_drinks
+                WHERE id_order_drink = $1;
+            `,
+            [orderDrinkID]
+        );
+
+
+        await recalculateOrderTotal(
+            orderID,
+            client
+        );
+
+
+        await client.query('COMMIT');
+
+
+        res.sendStatus(204);
+
+    } catch (error) {
+
+        await client.query('ROLLBACK');
+
+        console.error(error);
+
+        res.sendStatus(400);
+
+    } finally {
+
+        client.release();
+
+    }
+
+});
+
+
+// UPDATE
+app.put('/put-order_drink-ajax', async function (req, res) {
+
+    const data = req.body;
+
+    const orderDrinkID =
+        parseInt(data.id, 10);
+
+    const newOrderID =
+        parseInt(data.idOrder, 10);
+
+    const drinkID =
+        parseInt(data.idDrink, 10);
+
+    const quantity =
+        parseInt(data.quantity, 10);
+
+
+    if (
+        Number.isNaN(orderDrinkID) ||
+        Number.isNaN(newOrderID) ||
+        Number.isNaN(drinkID) ||
+        Number.isNaN(quantity) ||
+        quantity <= 0
+    ) {
+
+        return res.status(400).json({
+            error: 'Valid Order Item, Order, Drink, and quantity values are required.'
+        });
+
+    }
+
+
+    const client = await db.pool.connect();
+
+
+    try {
+
+        await client.query('BEGIN');
+
+
+        const originalResult = await client.query(
+            `
+                SELECT id_order
+                FROM orders_drinks
+                WHERE id_order_drink = $1;
+            `,
+            [orderDrinkID]
+        );
+
+
+        if (originalResult.rowCount === 0) {
+
+            await client.query('ROLLBACK');
+
+            return res.sendStatus(404);
+
+        }
+
+
+        const oldOrderID =
+            originalResult.rows[0].id_order;
+
+
+        const drinkResult = await client.query(
+            `
+                SELECT price
+                FROM drinks
+                WHERE id_drink = $1;
+            `,
+            [drinkID]
+        );
+
+
+        if (drinkResult.rowCount === 0) {
+
+            await client.query('ROLLBACK');
+
+            return res.sendStatus(404);
+
+        }
+
+
+        const drinkPrice =
+            parseFloat(drinkResult.rows[0].price);
+
+        const drinkTotal =
+            drinkPrice * quantity;
+
+
+        await client.query(
+            `
+                UPDATE orders_drinks
+
+                SET id_order = $1,
+                    id_drink = $2,
+                    quantity = $3,
+                    drink_total = $4
+
+                WHERE id_order_drink = $5;
+            `,
+            [
+                newOrderID,
+                drinkID,
+                quantity,
+                drinkTotal,
                 orderDrinkID
-            )
-        ) {
+            ]
+        );
 
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'A valid Order-Drink ID is required.'
-                });
+
+        await recalculateOrderTotal(
+            oldOrderID,
+            client
+        );
+
+
+        if (newOrderID !== oldOrderID) {
+
+            await recalculateOrderTotal(
+                newOrderID,
+                client
+            );
 
         }
 
 
-        // STEP 1:
-        // Find the parent Order
-        // before deleting the line item.
+        const result = await client.query(
+            `
+                SELECT ${ORDER_DRINK_COLUMNS}
 
-        let selectOrderDrinkQuery = `
-            SELECT idOrder
-            FROM Orders_Drinks
-            WHERE idOrderDrink = ?
-        `;
+                FROM orders_drinks od
 
+                INNER JOIN drinks d
+                    ON od.id_drink = d.id_drink
 
-        db.pool.query(
-
-            selectOrderDrinkQuery,
-
-            [orderDrinkID],
-
-            function (
-                error,
-                rows,
-                fields
-            ) {
-
-                if (error) {
-
-                    console.log(error);
-
-                    return res
-                        .sendStatus(
-                            500
-                        );
-
-                }
-
-
-                if (
-                    rows.length === 0
-                ) {
-
-                    return res
-                        .sendStatus(
-                            404
-                        );
-
-                }
-
-
-                let orderID =
-                    rows[0].idOrder;
-
-
-                // STEP 2:
-                // Delete the line item.
-
-                let deleteOrderDrinkQuery = `
-                    DELETE FROM Orders_Drinks
-                    WHERE idOrderDrink = ?
-                `;
-
-
-                db.pool.query(
-
-                    deleteOrderDrinkQuery,
-
-                    [orderDrinkID],
-
-                    function (
-                        error,
-                        result,
-                        fields
-                    ) {
-
-                        if (error) {
-
-                            console.log(
-                                error
-                            );
-
-                            return res
-                                .sendStatus(
-                                    400
-                                );
-
-                        }
-
-
-                        // STEP 3:
-                        // Recalculate the
-                        // parent Order total.
-
-                        recalculateOrderTotal(
-
-                            orderID,
-
-                            function (
-                                error,
-                                result
-                            ) {
-
-                                if (
-                                    error
-                                ) {
-
-                                    console.log(
-                                        error
-                                    );
-
-                                    return res
-                                        .sendStatus(
-                                            500
-                                        );
-
-                                }
-
-
-                                res.sendStatus(
-                                    204
-                                );
-
-                            }
-
-                        );
-
-                    }
-
-                );
-
-            }
-
+                WHERE od.id_order_drink = $1;
+            `,
+            [orderDrinkID]
         );
 
-    }
-);
 
+        await client.query('COMMIT');
 
 
-// ----------------------------------------------------
-// UPDATE: Update an Order Item
-// ----------------------------------------------------
+        res.status(200).json(result.rows[0]);
 
-app.put(
-    '/put-order_drink-ajax',
-    function (req, res) {
+    } catch (error) {
 
-        let data =
-            req.body;
+        await client.query('ROLLBACK');
 
+        console.error(error);
 
-        let orderDrinkID =
-            parseInt(
-                data.id,
-                10
-            );
+        res.sendStatus(400);
 
-        let newOrderID =
-            parseInt(
-                data.idOrder,
-                10
-            );
+    } finally {
 
-        let drinkID =
-            parseInt(
-                data.idDrink,
-                10
-            );
-
-        let quantity =
-            parseInt(
-                data.quantity,
-                10
-            );
-
-
-        if (
-            Number.isNaN(
-                orderDrinkID
-            ) ||
-            Number.isNaN(
-                newOrderID
-            ) ||
-            Number.isNaN(
-                drinkID
-            ) ||
-            Number.isNaN(
-                quantity
-            ) ||
-            quantity <= 0
-        ) {
-
-            return res
-                .status(400)
-                .json({
-                    error:
-                        'Valid Order-Drink, Order, Drink, and quantity values are required.'
-                });
-
-        }
-
-
-        // STEP 1:
-        // Find the original parent Order.
-
-        let selectOriginalOrderQuery = `
-            SELECT idOrder
-            FROM Orders_Drinks
-            WHERE idOrderDrink = ?
-        `;
-
-
-        db.pool.query(
-
-            selectOriginalOrderQuery,
-
-            [orderDrinkID],
-
-            function (
-                error,
-                orderDrinkRows,
-                fields
-            ) {
-
-                if (error) {
-
-                    console.log(error);
-
-                    return res
-                        .sendStatus(
-                            500
-                        );
-
-                }
-
-
-                if (
-                    orderDrinkRows
-                        .length === 0
-                ) {
-
-                    return res
-                        .sendStatus(
-                            404
-                        );
-
-                }
-
-
-                let oldOrderID =
-                    orderDrinkRows[0]
-                        .idOrder;
-
-
-                // STEP 2:
-                // Get the selected Drink's
-                // current menu price.
-
-                let selectDrinkQuery = `
-                    SELECT price
-                    FROM Drinks
-                    WHERE idDrink = ?
-                `;
-
-
-                db.pool.query(
-
-                    selectDrinkQuery,
-
-                    [drinkID],
-
-                    function (
-                        error,
-                        drinkRows,
-                        fields
-                    ) {
-
-                        if (error) {
-
-                            console.log(
-                                error
-                            );
-
-                            return res
-                                .sendStatus(
-                                    500
-                                );
-
-                        }
-
-
-                        if (
-                            drinkRows
-                                .length === 0
-                        ) {
-
-                            return res
-                                .sendStatus(
-                                    404
-                                );
-
-                        }
-
-
-                        let drinkPrice =
-                            parseFloat(
-                                drinkRows[0]
-                                    .price
-                            );
-
-
-                        let drinkTotal =
-                            drinkPrice *
-                            quantity;
-
-
-                        // STEP 3:
-                        // Update the line item.
-
-                        let updateOrderDrinkQuery = `
-                            UPDATE Orders_Drinks
-                            SET
-                                idOrder = ?,
-                                idDrink = ?,
-                                quantity = ?,
-                                drinkTotal = ?
-                            WHERE idOrderDrink = ?
-                        `;
-
-
-                        db.pool.query(
-
-                            updateOrderDrinkQuery,
-
-                            [
-                                newOrderID,
-                                drinkID,
-                                quantity,
-                                drinkTotal,
-                                orderDrinkID
-                            ],
-
-                            function (
-                                error,
-                                result,
-                                fields
-                            ) {
-
-                                if (
-                                    error
-                                ) {
-
-                                    console.log(
-                                        error
-                                    );
-
-                                    return res
-                                        .sendStatus(
-                                            400
-                                        );
-
-                                }
-
-
-                                // STEP 4:
-                                // Recalculate the
-                                // original parent Order.
-
-                                recalculateOrderTotal(
-
-                                    oldOrderID,
-
-                                    function (
-                                        error,
-                                        result
-                                    ) {
-
-                                        if (
-                                            error
-                                        ) {
-
-                                            console.log(
-                                                error
-                                            );
-
-                                            return res
-                                                .sendStatus(
-                                                    500
-                                                );
-
-                                        }
-
-
-                                        /*
-                                            After totals are correct,
-                                            read the updated line item
-                                            back from MariaDB.
-                                        */
-
-                                        function finishUpdate() {
-
-                                            let selectUpdatedQuery = `
-                                                SELECT
-                                                    Orders_Drinks.idOrderDrink,
-                                                    Orders_Drinks.idOrder,
-                                                    Orders_Drinks.idDrink,
-                                                    Drinks.name AS drinkName,
-                                                    Orders_Drinks.quantity,
-                                                    Orders_Drinks.drinkTotal
-                                                FROM Orders_Drinks
-
-                                                INNER JOIN Drinks
-                                                    ON Orders_Drinks.idDrink
-                                                    = Drinks.idDrink
-
-                                                WHERE
-                                                    Orders_Drinks.idOrderDrink = ?
-                                            `;
-
-
-                                            db.pool.query(
-
-                                                selectUpdatedQuery,
-
-                                                [
-                                                    orderDrinkID
-                                                ],
-
-                                                function (
-                                                    error,
-                                                    rows,
-                                                    fields
-                                                ) {
-
-                                                    if (
-                                                        error
-                                                    ) {
-
-                                                        console.log(
-                                                            error
-                                                        );
-
-                                                        return res
-                                                            .sendStatus(
-                                                                500
-                                                            );
-
-                                                    }
-
-
-                                                    let updatedOrderDrink =
-                                                        rows[0];
-
-
-                                                    res
-                                                        .status(
-                                                            200
-                                                        )
-                                                        .json(
-                                                            updatedOrderDrink
-                                                        );
-
-                                                }
-
-                                            );
-
-                                        }
-
-
-                                        /*
-                                            If the line item moved
-                                            from one Order to another,
-                                            BOTH totals must be updated.
-                                        */
-
-                                        if (
-                                            newOrderID !==
-                                            oldOrderID
-                                        ) {
-
-                                            recalculateOrderTotal(
-
-                                                newOrderID,
-
-                                                function (
-                                                    error,
-                                                    result
-                                                ) {
-
-                                                    if (
-                                                        error
-                                                    ) {
-
-                                                        console.log(
-                                                            error
-                                                        );
-
-                                                        return res
-                                                            .sendStatus(
-                                                                500
-                                                            );
-
-                                                    }
-
-
-                                                    finishUpdate();
-
-                                                }
-
-                                            );
-
-                                        }
-
-                                        else {
-
-                                            finishUpdate();
-
-                                        }
-
-                                    }
-
-                                );
-
-                            }
-
-                        );
-
-                    }
-
-                );
-
-            }
-
-        );
+        client.release();
 
     }
-);
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   ORDERS_DRINKS / ORDER ITEMS PAGE END
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+});
 
 
 
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                   HELPER FUNCTIONS
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-// ----------------------------------------------------
-// ORDER TOTAL HELPER
-// ----------------------------------------------------
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
-// Recalculate an Order's total price
-// from the stored Order Item totals.
+// HELPER FUNCTIONS
 //
-// totalPrice = SUM(Orders_Drinks.drinkTotal)
-//
-// We deliberately sum the stored
-// drinkTotal values.
-//
-// We do NOT recalculate old Orders
-// using Drinks.price.
-//
-// This means changing the current
-// menu price of a Drink will not
-// retroactively change old Orders.
-// ----------------------------------------------------
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-function recalculateOrderTotal(
+
+// Recalculate an Order's total from the stored line-item totals.
+//
+// A database client can optionally be supplied so this operation can
+// participate in the same PostgreSQL transaction as another operation.
+async function recalculateOrderTotal(
     orderID,
-    callback
+    client = db.pool
 ) {
 
-    let query = `
-        UPDATE Orders
+    return client.query(
+        `
+            UPDATE orders
 
-        SET totalPrice = (
+            SET total_price = (
+                SELECT COALESCE(
+                    SUM(drink_total),
+                    0
+                )
 
-            SELECT COALESCE(
+                FROM orders_drinks
 
-                SUM(
-                    Orders_Drinks.drinkTotal
-                ),
-
-                0
-
+                WHERE id_order = $1
             )
 
-            FROM Orders_Drinks
-
-            WHERE
-                Orders_Drinks.idOrder = ?
-
-        )
-
-        WHERE idOrder = ?
-    `;
-
-
-    db.pool.query(
-
-        query,
-
-        [
-            orderID,
-            orderID
-        ],
-
-        function (
-            error,
-            result,
-            fields
-        ) {
-
-            callback(
-                error,
-                result
-            );
-
-        }
-
+            WHERE id_order = $1;
+        `,
+        [orderID]
     );
 
 }
 
 
 
-/*
-    LISTENER
-*/
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// ERROR HANDLER
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-app.listen(
-    PORT,
-    function () {
 
-        console.log(
-            'Express started on http://localhost:' +
-            PORT +
-            '; press Ctrl-C to terminate.'
-        );
+app.use(function (error, req, res, next) {
 
-    }
-);
+    console.error(error);
+
+    res.status(500).json({
+        error: 'Internal server error.'
+    });
+
+});
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// LOCAL LISTENER / VERCEL EXPORT
+//
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// When app.js is run directly with:
+//
+//     node app.js
+//
+// start a local HTTP server.
+//
+// When Vercel imports this file, it uses the exported Express
+// application instead and manages the HTTP infrastructure itself.
+if (require.main === module) {
+
+    app.listen(
+        PORT,
+        function () {
+
+            console.log(
+                'Express started on http://localhost:' +
+                PORT +
+                '; press Ctrl-C to terminate.'
+            );
+
+        }
+    );
+
+}
+
+
+module.exports = app;

@@ -102,6 +102,12 @@ function addRowToTable(newEmployee) {
 
     // Configure the Delete button
     deleteButton.innerText = "Delete";
+    deleteButton.type = 'button';
+
+    deleteButton.classList.add(
+        'button',
+        'button-danger'
+    );
 
     deleteButton.onclick = function () {
         deleteEmployee(newEmployee.idEmployee);

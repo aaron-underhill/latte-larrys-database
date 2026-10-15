@@ -1,102 +1,150 @@
 // Code adapted from nodejs-start-app from course github to fit our database
 
-// Get the objects we need to modify
-let addOrderForm = document.getElementById('add-order-form-ajax');
 
-// Modify the objects we need
-addOrderForm.addEventListener("submit", function (e) {
+// Get the form we need to modify
+let addOrderForm =
+    document.getElementById('add-order-form-ajax');
 
-    // Prevent normal form submission
-    e.preventDefault();
 
-    // Get form fields
-    let inputEmployee =
-        document.getElementById("input-employee");
+// Handle form submission
+addOrderForm.addEventListener(
+    "submit",
+    function (e) {
 
-    let inputCustomer =
-        document.getElementById("input-customer");
+        // Prevent normal form submission
+        e.preventDefault();
 
-    let inputMinutesToProcess =
-        document.getElementById("input-minutesToProcess");
 
-    let inputOrderDate =
-        document.getElementById("input-orderDate");
-
-    // Get their current values
-    let employeeValue = inputEmployee.value;
-    let customerValue = inputCustomer.value;
-    let minutesToProcessValue = inputMinutesToProcess.value;
-    let orderDateValue = inputOrderDate.value;
-
-    // Build the object we want to send
-    let data = {
-        idEmployee: employeeValue,
-        idCustomer: customerValue,
-        minutesToProcess: minutesToProcessValue,
-        orderDate: orderDateValue
-    };
-
-    // Create an XMLHttpRequest object
-    let xhttp = new XMLHttpRequest();
-
-    // Configure the request
-    xhttp.open("POST", "/add-order-ajax", true);
-
-    // Tell the server we're sending JSON
-    xhttp.setRequestHeader(
-        "Content-type",
-        "application/json"
-    );
-
-    // Tell our AJAX request how to resolve
-    xhttp.onreadystatechange = () => {
-
-        if (
-            xhttp.readyState == 4 &&
-            xhttp.status == 201
-        ) {
-
-            // Parse the actual Order returned from MariaDB
-            let newOrder =
-                JSON.parse(xhttp.responseText);
-
-            // Add the new Order to the table
-            addRowToTable(newOrder);
-
-            // Reset the form
-            inputEmployee.value = '';
-            inputCustomer.value = '';
-            inputMinutesToProcess.value = '';
-            inputOrderDate.value = '';
-        }
-
-        else if (
-            xhttp.readyState == 4 &&
-            xhttp.status != 201
-        ) {
-            console.log(
-                "There was an error creating the Order."
+        // Get form fields
+        let inputEmployee =
+            document.getElementById(
+                "input-employee"
             );
 
-            console.log(xhttp.responseText);
-        }
-    };
+        let inputCustomer =
+            document.getElementById(
+                "input-customer"
+            );
 
-    // Send the request
-    xhttp.send(JSON.stringify(data));
-});
+        let inputMinutesToProcess =
+            document.getElementById(
+                "input-minutesToProcess"
+            );
+
+        let inputDate =
+            document.getElementById(
+                "input-date"
+            );
 
 
-// Creates a single table row representing one Order
+        // Get current values
+        let employeeValue =
+            inputEmployee.value;
+
+        let customerValue =
+            inputCustomer.value;
+
+        let minutesValue =
+            inputMinutesToProcess.value;
+
+        let dateValue =
+            inputDate.value;
+
+
+        // Build object to send to Express
+        let data = {
+            idEmployee: employeeValue,
+            idCustomer: customerValue,
+            minutesToProcess: minutesValue,
+            orderDate: dateValue
+        };
+
+
+        // Setup AJAX request
+        let xhttp =
+            new XMLHttpRequest();
+
+
+        xhttp.open(
+            "POST",
+            "/add-order-ajax",
+            true
+        );
+
+
+        xhttp.setRequestHeader(
+            "Content-type",
+            "application/json"
+        );
+
+
+        // Handle response
+        xhttp.onreadystatechange = () => {
+
+            if (
+                xhttp.readyState == 4 &&
+                xhttp.status == 201
+            ) {
+
+                let newOrder =
+                    JSON.parse(
+                        xhttp.responseText
+                    );
+
+
+                // Add the returned Order
+                // to the current HTML table.
+                addRowToTable(
+                    newOrder
+                );
+
+
+                // Reset form
+                inputEmployee.value = '';
+                inputCustomer.value = '';
+                inputMinutesToProcess.value = '';
+                inputDate.value = '';
+            }
+
+            else if (
+                xhttp.readyState == 4 &&
+                xhttp.status != 201
+            ) {
+
+                console.log(
+                    "There was an error adding the Order."
+                );
+
+                console.log(
+                    xhttp.responseText
+                );
+            }
+        };
+
+
+        // Send request
+        xhttp.send(
+            JSON.stringify(data)
+        );
+    }
+);
+
+
+// Add one Order to the HTML table
 function addRowToTable(newOrder) {
 
-    // Get the <tbody> belonging to our Order table
     let tableBody =
-        document.querySelector("#orders-table tbody");
+        document.querySelector(
+            "#orders-table tbody"
+        );
 
-    // Create a row and its cells
-    let row = document.createElement("TR");
 
+    // Create row
+    let row =
+        document.createElement("TR");
+
+
+    // Create cells
     let idOrderCell =
         document.createElement("TD");
 
@@ -109,75 +157,127 @@ function addRowToTable(newOrder) {
     let totalPriceCell =
         document.createElement("TD");
 
-    let minutesToProcessCell =
+    let minutesCell =
         document.createElement("TD");
 
-    let orderDateCell =
+    let dateCell =
         document.createElement("TD");
 
     let deleteCell =
         document.createElement("TD");
 
+
     // Create Delete button
     let deleteButton =
         document.createElement("button");
 
-    // Fill the cells
+
+    // Fill cells
     idOrderCell.innerText =
         newOrder.idOrder;
 
     idEmployeeCell.innerText =
-        newOrder.idEmployee ?? '';
+        newOrder.idEmployee;
 
     idCustomerCell.innerText =
-        newOrder.idCustomer ?? '';
+        newOrder.idCustomer;
 
-    // A brand-new Order starts at $0.00 because
-    // it does not have any Drinks yet.
     totalPriceCell.innerText =
-        newOrder.totalPrice;
+        '$' +
+        Number(
+            newOrder.totalPrice
+        ).toFixed(2);
 
-    minutesToProcessCell.innerText =
+    minutesCell.innerText =
         newOrder.minutesToProcess;
 
-    orderDateCell.innerText =
+    dateCell.innerText =
         newOrder.orderDate;
 
+
     // Configure Delete button
-    deleteButton.innerText = "Delete";
+    deleteButton.innerText =
+        "Delete";
 
-    deleteButton.onclick = function () {
-        deleteOrder(newOrder.idOrder);
-    };
+    deleteButton.type =
+        "button";
 
-    deleteCell.appendChild(deleteButton);
+    deleteButton.classList.add(
+        "button",
+        "button-danger"
+    );
 
-    // Add the cells to the row
-    row.appendChild(idOrderCell);
-    row.appendChild(idEmployeeCell);
-    row.appendChild(idCustomerCell);
-    row.appendChild(totalPriceCell);
-    row.appendChild(minutesToProcessCell);
-    row.appendChild(orderDateCell);
-    row.appendChild(deleteCell);
+    deleteButton.onclick =
+        function () {
 
-    // Store the Order ID on the row
+            deleteOrder(
+                newOrder.idOrder
+            );
+        };
+
+
+    deleteCell.appendChild(
+        deleteButton
+    );
+
+
+    // Add cells to row
+    row.appendChild(
+        idOrderCell
+    );
+
+    row.appendChild(
+        idEmployeeCell
+    );
+
+    row.appendChild(
+        idCustomerCell
+    );
+
+    row.appendChild(
+        totalPriceCell
+    );
+
+    row.appendChild(
+        minutesCell
+    );
+
+    row.appendChild(
+        dateCell
+    );
+
+    row.appendChild(
+        deleteCell
+    );
+
+
+    // Store Order ID on row
     row.setAttribute(
         "data-value",
         newOrder.idOrder
     );
 
-    // Add the completed row to the table
-    tableBody.appendChild(row);
 
-    // Add the Order to the Update dropdown
+    // Add row to table
+    tableBody.appendChild(
+        row
+    );
+
+
+    // Add new Order to the
+    // Update dropdown
     let selectMenu =
-        document.getElementById("order-select");
+        document.getElementById(
+            "order-select"
+        );
+
 
     if (selectMenu) {
 
         let option =
-            document.createElement("option");
+            document.createElement(
+                "option"
+            );
 
         option.text =
             `Order ${newOrder.idOrder}`;
@@ -185,6 +285,8 @@ function addRowToTable(newOrder) {
         option.value =
             newOrder.idOrder;
 
-        selectMenu.add(option);
+        selectMenu.add(
+            option
+        );
     }
 }
