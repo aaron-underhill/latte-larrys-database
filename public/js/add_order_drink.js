@@ -144,10 +144,19 @@ function addRowToTable(newOrderDrink) {
         newOrderDrink.quantity;
 
     drinkTotalCell.innerText =
-        newOrderDrink.drinkTotal;
+        '$' +
+        Number(
+            newOrderDrink.drinkTotal
+        ).toFixed(2);
 
     // Configure Delete button
     deleteButton.innerText = "Delete";
+    deleteButton.type = 'button';
+
+    deleteButton.classList.add(
+        'button',
+        'button-danger'
+    );
 
     deleteButton.onclick = function () {
 

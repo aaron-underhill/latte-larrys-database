@@ -79,6 +79,12 @@ function addRowToTable(newCustomer) {
 
     // Create a button that will go inside the Delete cell
     let deleteButton = document.createElement("button");
+    deleteButton.type = 'button';
+
+    deleteButton.classList.add(
+        'button',
+        'button-danger'
+    );
 
     // Fill the cells with the data returned by the server
     idCustomerCell.innerText = newCustomer.idCustomer;
